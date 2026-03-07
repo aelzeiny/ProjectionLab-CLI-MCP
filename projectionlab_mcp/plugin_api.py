@@ -184,6 +184,133 @@ async def delete_milestone(plan_id: str, milestone_id: str) -> None:
     await restore_plans(plans)
 
 
+# --- Real Asset CRUD ---
+
+async def list_real_assets() -> list:
+    data = await export_data()
+    return data.today.assets
+
+
+async def get_real_asset(asset_id: str):
+    data = await export_data()
+    for a in data.today.assets:
+        if a.id == asset_id:
+            return a
+    raise ValueError(f"Real asset '{asset_id}' not found.")
+
+
+async def create_real_asset(asset: models.BaseAsset):
+    data = await export_data()
+    today = data.today.model_dump(by_alias=True)
+    today["assets"].append(asset.model_dump(exclude_none=True))
+    await restore_current_finances(today)
+    return asset
+
+
+async def delete_real_asset(asset_id: str) -> None:
+    data = await export_data()
+    remaining = [a for a in data.today.assets if a.id != asset_id]
+    if len(remaining) == len(data.today.assets):
+        raise ValueError(f"Real asset '{asset_id}' not found.")
+    today = data.today.model_dump(by_alias=True)
+    today["assets"] = [a.model_dump(exclude_none=True) for a in remaining]
+    await restore_current_finances(today)
+
+
+# --- Unsecured Debt CRUD ---
+
+async def list_unsecured_debts() -> list:
+    data = await export_data()
+    return data.today.debts
+
+
+async def get_unsecured_debt(debt_id: str):
+    data = await export_data()
+    for d in data.today.debts:
+        if d.id == debt_id:
+            return d
+    raise ValueError(f"Unsecured debt '{debt_id}' not found.")
+
+
+async def create_unsecured_debt(debt: models.BaseDebt):
+    data = await export_data()
+    today = data.today.model_dump(by_alias=True)
+    today["debts"].append(debt.model_dump(exclude_none=True))
+    await restore_current_finances(today)
+    return debt
+
+
+async def delete_unsecured_debt(debt_id: str) -> None:
+    data = await export_data()
+    remaining = [d for d in data.today.debts if d.id != debt_id]
+    if len(remaining) == len(data.today.debts):
+        raise ValueError(f"Unsecured debt '{debt_id}' not found.")
+    today = data.today.model_dump(by_alias=True)
+    today["debts"] = [d.model_dump(exclude_none=True) for d in remaining]
+    await restore_current_finances(today)
+
+
+# --- Income CRUD (plan-level) ---
+
+async def list_income_events(plan_id: str) -> list[dict]:
+    data = await export_data()
+    plan = _find_plan(data.plans, plan_id)
+    return plan.get("income", {}).get("events", [])
+
+
+async def get_income_event(plan_id: str, income_id: str) -> dict:
+    events = await list_income_events(plan_id)
+    for e in events:
+        if e.get("id") == income_id:
+            return e
+    raise ValueError(f"Income event '{income_id}' not found in plan '{plan_id}'.")
+
+
+async def _create_income_event(plan_id: str, event: dict) -> dict:
+    data = await export_data()
+    plans = data.plans
+    plan = _find_plan(plans, plan_id)
+    plan.setdefault("income", {}).setdefault("events", []).append(event)
+    await restore_plans(plans)
+    return event
+
+
+async def create_salary(plan_id: str, params: models.NewSalary) -> models.Salary:
+    salary = params.to_salary()
+    await _create_income_event(plan_id, salary.model_dump(exclude_none=True))
+    return salary
+
+
+async def create_hourly_wage(plan_id: str, params: models.NewHourlyWage) -> models.HourlyWage:
+    wage = params.to_hourly_wage()
+    await _create_income_event(plan_id, wage.model_dump(exclude_none=True))
+    return wage
+
+
+async def create_rsu_grant(plan_id: str, params: models.NewRsuGrant) -> models.RsuGrant:
+    grant = params.to_rsu_grant()
+    await _create_income_event(plan_id, grant.model_dump(exclude_none=True))
+    return grant
+
+
+async def create_custom_income(plan_id: str, params: models.NewCustomIncome) -> models.CustomIncome:
+    income = params.to_custom_income()
+    await _create_income_event(plan_id, income.model_dump(exclude_none=True))
+    return income
+
+
+async def delete_income_event(plan_id: str, income_id: str) -> None:
+    data = await export_data()
+    plans = data.plans
+    plan = _find_plan(plans, plan_id)
+    events = plan.get("income", {}).get("events", [])
+    remaining = [e for e in events if e.get("id") != income_id]
+    if len(remaining) == len(events):
+        raise ValueError(f"Income event '{income_id}' not found in plan '{plan_id}'.")
+    plan["income"]["events"] = remaining
+    await restore_plans(plans)
+
+
 async def list_plans() -> list[dict]:
     data = await export_data()
     return [{"id": p.get("id"), "name": p.get("name"), "active": p.get("active", False)} for p in data.plans]

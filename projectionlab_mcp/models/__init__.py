@@ -52,6 +52,10 @@ from .income import (
     NewSalary,
     HourlyWage,
     NewHourlyWage,
+    RsuGrant,
+    NewRsuGrant,
+    CustomIncome,
+    NewCustomIncome,
 )
 from .milestones import (
     DateCriterion,
@@ -181,6 +185,10 @@ __all__ = [
     "NewSalary",
     "HourlyWage",
     "NewHourlyWage",
+    "RsuGrant",
+    "NewRsuGrant",
+    "CustomIncome",
+    "NewCustomIncome",
     # milestones
     "DateCriterion",
     "YearCriterion",

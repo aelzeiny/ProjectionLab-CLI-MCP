@@ -180,6 +180,164 @@ async def delete_investment_account(
 
 
 @mcp.tool()
+async def list_real_assets() -> str:
+    """List all real assets from Current Finances."""
+    import json
+    assets = await plugin_api.list_real_assets()
+    return json.dumps([a.model_dump(exclude_none=True) for a in assets], indent=2)
+
+
+@mcp.tool()
+async def get_real_asset(
+    asset_id: Annotated[str, Field(description="The ID of the real asset to retrieve.")]
+) -> str:
+    """Get a single real asset by ID."""
+    asset = await plugin_api.get_real_asset(asset_id)
+    return asset.model_dump_json(indent=2, exclude_none=True)
+
+
+@mcp.tool()
+async def create_real_estate_asset(params: models.RealEstateAsset) -> str:
+    """Create a new real estate asset (home, rental property, building, etc.) in Current Finances."""
+    asset = await plugin_api.create_real_asset(params)
+    return f"Real estate asset '{asset.id}' created.\n" + asset.model_dump_json(indent=2, exclude_none=True)
+
+
+@mcp.tool()
+async def create_car_asset(params: models.CarAsset) -> str:
+    """Create a new vehicle asset (car, truck, etc.) in Current Finances."""
+    asset = await plugin_api.create_real_asset(params)
+    return f"Car asset '{asset.id}' created.\n" + asset.model_dump_json(indent=2, exclude_none=True)
+
+
+@mcp.tool()
+async def create_custom_asset(params: models.CustomAsset) -> str:
+    """Create a new custom real asset in Current Finances."""
+    asset = await plugin_api.create_real_asset(params)
+    return f"Custom asset '{asset.id}' created.\n" + asset.model_dump_json(indent=2, exclude_none=True)
+
+
+@mcp.tool()
+async def delete_real_asset(
+    asset_id: Annotated[str, Field(description="The ID of the real asset to delete.")]
+) -> str:
+    """Delete a real asset from Current Finances."""
+    await plugin_api.delete_real_asset(asset_id)
+    return f"Real asset '{asset_id}' deleted."
+
+
+@mcp.tool()
+async def list_unsecured_debts() -> str:
+    """List all unsecured debts from Current Finances."""
+    import json
+    debts = await plugin_api.list_unsecured_debts()
+    return json.dumps([d.model_dump(exclude_none=True) for d in debts], indent=2)
+
+
+@mcp.tool()
+async def get_unsecured_debt(
+    debt_id: Annotated[str, Field(description="The ID of the unsecured debt to retrieve.")]
+) -> str:
+    """Get a single unsecured debt by ID."""
+    debt = await plugin_api.get_unsecured_debt(debt_id)
+    return debt.model_dump_json(indent=2, exclude_none=True)
+
+
+@mcp.tool()
+async def create_generic_debt(params: models.GenericDebt) -> str:
+    """Create a new generic unsecured debt (credit card, medical, personal loan, etc.) in Current Finances."""
+    debt = await plugin_api.create_unsecured_debt(params)
+    return f"Generic debt '{debt.id}' created.\n" + debt.model_dump_json(indent=2, exclude_none=True)
+
+
+@mcp.tool()
+async def create_student_loans_debt(params: models.StudentLoansDebt) -> str:
+    """Create a new student loans debt in Current Finances."""
+    debt = await plugin_api.create_unsecured_debt(params)
+    return f"Student loans debt '{debt.id}' created.\n" + debt.model_dump_json(indent=2, exclude_none=True)
+
+
+@mcp.tool()
+async def delete_unsecured_debt(
+    debt_id: Annotated[str, Field(description="The ID of the unsecured debt to delete.")]
+) -> str:
+    """Delete an unsecured debt from Current Finances."""
+    await plugin_api.delete_unsecured_debt(debt_id)
+    return f"Unsecured debt '{debt_id}' deleted."
+
+
+@mcp.tool()
+async def list_income_events(
+    plan_id: Annotated[str, Field(description="The ID of the plan whose income events to list.")]
+) -> str:
+    """List all income events for a plan (salary, hourly, RSU, custom, etc.)."""
+    import json
+    events = await plugin_api.list_income_events(plan_id)
+    return json.dumps(events, indent=2)
+
+
+@mcp.tool()
+async def get_income_event(
+    plan_id: Annotated[str, Field(description="The ID of the plan.")],
+    income_id: Annotated[str, Field(description="The ID of the income event to retrieve.")],
+) -> str:
+    """Get a single income event by ID."""
+    import json
+    event = await plugin_api.get_income_event(plan_id, income_id)
+    return json.dumps(event, indent=2)
+
+
+@mcp.tool()
+async def create_salary(
+    plan_id: Annotated[str, Field(description="The ID of the plan to add the salary to.")],
+    params: models.NewSalary,
+) -> str:
+    """Create a new salary income event in a plan."""
+    salary = await plugin_api.create_salary(plan_id, params)
+    return f"Salary '{salary.id}' created.\n" + salary.model_dump_json(indent=2, exclude_none=True)
+
+
+@mcp.tool()
+async def create_hourly_wage(
+    plan_id: Annotated[str, Field(description="The ID of the plan to add the hourly wage to.")],
+    params: models.NewHourlyWage,
+) -> str:
+    """Create a new hourly wage income event in a plan."""
+    wage = await plugin_api.create_hourly_wage(plan_id, params)
+    return f"Hourly wage '{wage.id}' created.\n" + wage.model_dump_json(indent=2, exclude_none=True)
+
+
+@mcp.tool()
+async def create_rsu_grant(
+    plan_id: Annotated[str, Field(description="The ID of the plan to add the RSU grant to.")],
+    params: models.NewRsuGrant,
+) -> str:
+    """Create a new RSU grant income event in a plan."""
+    grant = await plugin_api.create_rsu_grant(plan_id, params)
+    return f"RSU grant '{grant.id}' created.\n" + grant.model_dump_json(indent=2, exclude_none=True)
+
+
+@mcp.tool()
+async def create_custom_income(
+    plan_id: Annotated[str, Field(description="The ID of the plan to add the custom income to.")],
+    params: models.NewCustomIncome,
+) -> str:
+    """Create a new custom income event in a plan."""
+    income = await plugin_api.create_custom_income(plan_id, params)
+    return f"Custom income '{income.id}' created.\n" + income.model_dump_json(indent=2, exclude_none=True)
+
+
+@mcp.tool()
+async def delete_income_event(
+    plan_id: Annotated[str, Field(description="The ID of the plan.")],
+    income_id: Annotated[str, Field(description="The ID of the income event to delete.")],
+) -> str:
+    """Delete an income event from a plan."""
+    await plugin_api.delete_income_event(plan_id, income_id)
+    return f"Income event '{income_id}' deleted."
+
+
+@mcp.tool()
 async def list_plans() -> str:
     """List all plans with their IDs and names."""
     import json
