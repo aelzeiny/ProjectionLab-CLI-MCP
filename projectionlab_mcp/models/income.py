@@ -477,3 +477,149 @@ class NewSalary(BaseModel):
         data = self.model_dump(exclude_none=True)
         data.setdefault("title", data["name"])
         return Salary.model_validate(data)
+
+
+class CustomIncome(BaseModel):
+    """A custom income event as stored in plan.income.events.
+
+    The ProjectionLab UI calls this "Custom Income" but the stored type is "other".
+
+    Key differences from Salary/HourlyWage/RsuGrant:
+      - type = "other" (not "custom" — important!)
+      - icon = "mdi-currency-usd-circle"
+      - taxWithholding = False by default (all other income types default to True)
+      - withhold default = 20 (same as hourly; vs 25 salary, 30 RSU)
+      - No hoursPerWeek, goPartTime, hasPension / pension* fields
+      - No repeatIntervalType/repeatInterval/repeatScaler/repeatEnd (but repeat flag is present)
+      - end default has no modifier (unlike hourly which uses modifier="exclude")
+      - selfEmployment/wage/isDividendIncome/isPassiveIncome are plain bool (not Optional)
+        because the app always stores them explicitly
+    """
+    model_config = {"extra": "allow"}
+
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    planPath: Literal["income"] = "income"
+    type: Literal["other"] = "other"
+
+    # Display
+    name: str = Field(description="Internal name shown in the plan income list.")
+    title: str = Field(default="Custom Income", description='Display title. Defaults to "Custom Income".')
+    icon: str = Field(default="mdi-currency-usd-circle", description="Material Design icon name.")
+    owner: Literal["me", "spouse"] = Field(default="me", description='Who earns this income: "me" or "spouse".')
+
+    # Amount
+    amount: float = Field(description="Income amount per period.")
+    amountType: Literal["today$", "actual$"] = Field(
+        default="today$",
+        description='"today$" = Today\'s Currency (inflation-adjusted); "actual$" = nominal future dollars.',
+    )
+
+    # Frequency
+    frequency: Literal["once", "yearly", "quarterly", "monthly", "bi-weekly", "weekly", "daily"] = Field(
+        default="yearly",
+        description="How often the income is received. Defaults to yearly.",
+    )
+    frequencyChoices: bool = Field(default=True, description="Always True for custom income — frequency is user-configurable.")
+
+    # Time range
+    start: IncomeTimeRef = Field(
+        default_factory=lambda: IncomeTimeRef(type="keyword", value="beforeCurrentYear"),
+        description="When this income begins. Defaults to already active (before current year).",
+    )
+    end: IncomeTimeRef = Field(
+        default_factory=lambda: IncomeTimeRef(type="milestone", value="retirement"),
+        description="When this income ends. Defaults to retirement (no modifier — inclusive boundary).",
+    )
+
+    # Change over time
+    yearlyChange: IncomeYearlyChange = Field(
+        default_factory=IncomeYearlyChange,
+        description='How the amount changes year-over-year. Defaults to "match-inflation".',
+    )
+
+    # Tax handling — NOTE: taxWithholding defaults to False (unlike all other income types)
+    taxExempt: bool = Field(default=False, description="If True, this income is fully exempt from income tax.")
+    taxWithholding: bool = Field(
+        default=False,
+        description="If True, withhold a portion each period and return as refund if over-withheld. "
+                    "Defaults to False for custom income (unlike salary/hourly/RSU which default to True).",
+    )
+    withhold: float = Field(default=20, description="% to withhold for taxes (only when taxWithholding=True). Default 20.")
+
+    # Advanced tax flags — always stored explicitly (not Optional like RSU)
+    selfEmployment: bool = Field(default=False, description="Counts as self-employment income (subject to SE tax).")
+    wage: bool = Field(default=False, description="Counts as wage income. Mutually exclusive with selfEmployment.")
+    isDividendIncome: bool = Field(default=False, description="Treat as dividend income.")
+    isPassiveIncome: bool = Field(default=False, description="Counts as passive income.")
+
+    # Send To
+    routeToAccounts: Optional[str] = Field(default=None, description="Account ID to route income to. Null = automatic cash flow.")
+    preventOverflow: bool = Field(default=False, description="If True, income routes to a specific account instead of normal cash flow.")
+
+    # Recurrence
+    repeat: bool = Field(default=False, description="Enable recurrence — income repeats on a schedule.")
+    repeatIntervalType: Optional[Literal["between"]] = Field(default=None, description='Always "between" when repeat=True.')
+    repeatInterval: Optional[int] = Field(default=None, description="Number of years between each repeated event.")
+    repeatScaler: Optional[float] = Field(default=None, description="% to scale the amount each repetition.")
+    repeatEnd: Optional[IncomeTimeRef] = Field(default=None, description="When recurrence stops.")
+
+
+class NewCustomIncome(BaseModel):
+    """Input model for creating a new Custom Income event.
+
+    Only name and amount are required; all other fields have sensible defaults
+    matching what the ProjectionLab UI creates for a new "Custom Income".
+
+    Note: the stored type is "other" (not "custom") — this is how ProjectionLab
+    identifies custom income internally.
+    """
+    name: Annotated[str, Field(description="Display name for this income event.")]
+    amount: Annotated[float, Field(description="Income amount per period (in today's dollars by default).")]
+    owner: Annotated[Literal["me", "spouse"], Field(description='Who earns this income: "me" or "spouse".')] = "me"
+
+    frequency: Annotated[
+        Literal["once", "yearly", "quarterly", "monthly", "bi-weekly", "weekly", "daily"],
+        Field(description="How often the income is received. Defaults to yearly."),
+    ] = "yearly"
+
+    start: Annotated[IncomeTimeRef, Field(
+        description='When this income begins. Default: already active ("beforeCurrentYear").'
+    )] = Field(default_factory=lambda: IncomeTimeRef(type="keyword", value="beforeCurrentYear"))
+
+    end: Annotated[IncomeTimeRef, Field(
+        description="When this income ends. Default: at retirement (no modifier — inclusive)."
+    )] = Field(default_factory=lambda: IncomeTimeRef(type="milestone", value="retirement"))
+
+    amountType: Annotated[Literal["today$", "actual$"], Field(
+        description='"today$" = entered in Today\'s Currency; "actual$" = nominal future dollars.'
+    )] = "today$"
+
+    yearlyChange: Annotated[IncomeYearlyChange, Field(
+        description="How the amount changes over time. Default: match inflation."
+    )] = Field(default_factory=IncomeYearlyChange)
+
+    taxExempt: Annotated[bool, Field(description="If True, fully exempt from income tax.")] = False
+    taxWithholding: Annotated[bool, Field(
+        description="If True, withhold a portion for taxes. Defaults to False for custom income."
+    )] = False
+    withhold: Annotated[float, Field(description="% to withhold for taxes (if taxWithholding=True). Default 20.")] = 20
+
+    selfEmployment: Annotated[bool, Field(description="Counts as self-employment income (subject to SE tax).")] = False
+    wage: Annotated[bool, Field(description="Counts as wage income. Mutually exclusive with selfEmployment.")] = False
+    isDividendIncome: Annotated[bool, Field(description="Treat as dividend income.")] = False
+    isPassiveIncome: Annotated[bool, Field(description="Counts as passive income.")] = False
+
+    repeat: Annotated[bool, Field(description="Enable recurrence.")] = False
+    repeatInterval: Annotated[Optional[int], Field(description="Years between each repeated event (when repeat=True).")] = None
+    repeatScaler: Annotated[Optional[float], Field(description="% to scale amount each repetition (when repeat=True).")] = None
+    repeatEnd: Annotated[Optional[IncomeTimeRef], Field(description="When recurrence stops (when repeat=True).")] = None
+
+    def to_custom_income(self) -> CustomIncome:
+        """Convert to a full CustomIncome object with all required fields filled in."""
+        data = self.model_dump(exclude_none=True)
+        data.setdefault("title", "Custom Income")
+        if data.get("repeat") and data.get("repeatInterval") is not None:
+            data["repeatIntervalType"] = "between"
+        if data.get("repeat") and "repeatEnd" not in data:
+            data["repeatEnd"] = IncomeTimeRef(type="keyword", value="endOfPlan", modifier="include").model_dump()
+        return CustomIncome.model_validate(data)
