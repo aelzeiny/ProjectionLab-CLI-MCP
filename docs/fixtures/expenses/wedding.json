@@ -1,0 +1,35 @@
+{
+  "amount": 100,
+  "amountType": "today$",
+  "color": "pink-lighten-1",
+  "end": {
+    "modifier": "include",
+    "type": "keyword",
+    "value": "endOfPlan"
+  },
+  "frequency": "once",
+  "frequencyChoices": true,
+  "icon": "mdi-diamond-stone",
+  "id": "2bee5044-c4d0-44a7-9268-5a544cb9ce4f",
+  "name": "Wedding",
+  "owner": "me",
+  "planPath": "expenses",
+  "repeat": false,
+  "spendingType": "discretionary",
+  "start": {
+    "modifier": "include",
+    "type": "keyword",
+    "value": "now"
+  },
+  "switchToMarried": false,
+  "title": "Wedding",
+  "type": "wedding",
+  "yearlyChange": {
+    "amount": 0,
+    "amountType": "today$",
+    "limit": 0,
+    "limitEnabled": false,
+    "limitType": "today$",
+    "type": "none"
+  }
+}

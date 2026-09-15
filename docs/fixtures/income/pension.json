@@ -1,0 +1,33 @@
+{
+  "amount": 100,
+  "amountType": "today$",
+  "end": {
+    "modifier": "include",
+    "type": "keyword",
+    "value": "endOfPlan"
+  },
+  "frequency": "yearly",
+  "frequencyChoices": true,
+  "icon": "mdi-account-clock",
+  "id": "cd9d086f-af68-4aad-9a71-dc107a9be9c9",
+  "name": "Pension Income",
+  "owner": "me",
+  "planPath": "income",
+  "start": {
+    "modifier": "include",
+    "type": "milestone",
+    "value": "retirement"
+  },
+  "taxExempt": false,
+  "title": "Pension Income",
+  "type": "pension",
+  "withholdingMode": "auto",
+  "yearlyChange": {
+    "amount": 0,
+    "amountType": "today$",
+    "limit": 0,
+    "limitEnabled": false,
+    "limitType": "today$",
+    "type": "match-inflation"
+  }
+}

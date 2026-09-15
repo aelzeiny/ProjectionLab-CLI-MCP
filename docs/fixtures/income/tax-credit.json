@@ -1,0 +1,37 @@
+{
+  "amount": 100,
+  "amountType": "today$",
+  "end": {
+    "modifier": "include",
+    "type": "milestone",
+    "value": "retirement"
+  },
+  "frequency": "once",
+  "frequencyChoices": true,
+  "icon": "mdi-file-document-outline",
+  "id": "6fb1b4ae-bc77-44ff-8eb6-8dd08d975b38",
+  "jurisdictions": [
+    "federal"
+  ],
+  "name": "Tax Credit",
+  "owner": "me",
+  "planPath": "income",
+  "refundable": false,
+  "repeat": false,
+  "start": {
+    "modifier": "include",
+    "type": "keyword",
+    "value": "now"
+  },
+  "taxType": "income",
+  "title": "Tax Credit",
+  "type": "tax-credit",
+  "yearlyChange": {
+    "amount": 0,
+    "amountType": "today$",
+    "limit": 0,
+    "limitEnabled": false,
+    "limitType": "today$",
+    "type": "none"
+  }
+}

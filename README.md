@@ -80,11 +80,24 @@ Income events live inside a plan (`plan.income.events`) and are plan-specific. P
 | ---------------------- | -------------------------------------------------- |
 | `list_income_events`   | List all income events in a plan                   |
 | `get_income_event`     | Get a single income event by ID                    |
+| `create_income`        | Add an income event of any UI type (salary, hourly, rsu, side-hustle, inheritance, tax-credit, tax-deduction, pension, social-security, other) with the UI's defaults |
 | `create_salary`        | Add a salary income event                          |
 | `create_hourly_wage`   | Add an hourly wage income event                    |
 | `create_rsu_grant`     | Add an RSU grant income event                      |
 | `create_custom_income` | Add a custom income event (stored type: `"other"`) |
 | `delete_income_event`  | Delete an income event by ID                       |
+
+### Expense events (per plan)
+
+Expense events live inside a plan (`plan.expenses.events`). Generated Medicare expenses are locked and cannot be deleted.
+
+| Tool                    | Description                                          |
+| ----------------------- | ---------------------------------------------------- |
+| `list_expense_events`   | List all expense events in a plan                    |
+| `get_expense_event`     | Get a single expense event by ID                     |
+| `create_expense`        | Add an expense of any UI type (rent, education, wedding, debt, ...) with the UI's defaults |
+| `create_custom_expense` | Add a custom expense event (stored type: `"other"`)  |
+| `delete_expense_event`  | Delete an expense event by ID                        |
 
 ### Milestones (per plan)
 
@@ -96,6 +109,54 @@ Income events live inside a plan (`plan.income.events`) and are plan-specific. P
 | `update_milestone` | Update fields on an existing milestone |
 | `delete_milestone` | Delete a milestone by ID               |
 
+### Reports (per plan)
+
+The Reports tab of a plan renders 3 tables and ~41 plots and can export the one on screen as
+CSV, JSON or PDF. There is no Plugin API for this, so these tools drive the shared browser:
+pick the report from the toolbar menus and capture the Export download.
+
+| Tool              | Description                                                                 |
+| ----------------- | --------------------------------------------------------------------------- |
+| `list_reports`    | List report keys (`summaryTable`, `netWorth`, `expensesByCategory`, ...)    |
+| `download_report` | Export one report as `csv`/`json` (returned inline) or `pdf` (saved to a path) |
+
+Reports are addressed by the stable key the UI's menu items carry (`path` attribute), because
+the visible names are not unique: "Spending" is both `spendingByCategory` and the per-expense
+`granularSpending`, and "Income" is both the `incomeTable` table and the `incomeByCategory` plot.
+Unique names ("Net Worth", "Summary") are accepted too. CSV exports start with a title line and a
+blank line before the header row; JSON exports are a list of row objects keyed by column name.
+
+## CLI
+
+The same operations are available from the shell as `projectionlab` (alias `pl`). Output is JSON,
+so it composes with `jq`. Plans can be referenced by id or by name.
+
+```bash
+pl plans                                   # list plans
+pl export -o backup.json                   # full export
+pl income list "My Plan" | jq '.[].name'
+pl income create "My Plan" --type salary --name "New job" --amount 180000 \
+     --set withholdingMode=fixed --set withholdingRate=25
+pl expense create "My Plan" --type wedding --name Wedding --amount 20000 \
+     --set 'start={"type":"date","value":"2027-06-01"}' --set switchToMarried=true
+pl expense delete "My Plan" <id>
+pl milestone update "My Plan" <id> --set name="FI"
+pl priority reorder "My Plan" <id1> <id2> <id3> <id4>
+pl investment create --type roth-ira --set name="Roth" --set title="Roth IRA" --set owner=me --set balance=0
+pl account update <id> --set balance=52000
+pl report list | jq -r '.[].key'          # report keys
+pl report download "My Plan" summaryTable > summary.csv
+pl report download "My Plan" netWorth -f json | jq '.[0]'
+pl report download "My Plan" expensesByCategory -f pdf -o expenses.pdf
+pl restore plans backup-plans.json         # destructive: replaces all plans
+pl probe snap before && pl probe snap after && pl probe diff before after
+```
+
+Creation parameters come from `--type/--name/--amount/--owner/--frequency`, any number of
+`--set key=value` (values parsed as JSON when possible), `--json '{...}'`, or `--file f.json`
+(`-` for stdin), and are validated against the same Pydantic models the MCP tools use. Fields
+you omit take the defaults the ProjectionLab UI itself would use for that type.
+
 ## Requirements
 
 - Python 3.11+
@@ -104,8 +165,8 @@ Income events live inside a plan (`plan.income.events`) and are plan-specific. P
 ## Setup
 
 ```bash
-pip install -e .
-playwright install chromium
+uv venv .venv && uv pip install -p .venv/bin/python -e .   # or: pip install -e .
+.venv/bin/playwright install chromium
 ```
 
 Copy `.env.example` to `.env` and fill in your credentials:
@@ -131,7 +192,7 @@ The server launches a headless browser, logs in automatically, and communicates 
 Dev mode connects to a shared visible browser via Chrome DevTools Protocol, useful for watching what the server does in real time alongside a browser automation tool (e.g. [browser-mcp](https://github.com/executeautomation/mcp-playwright)).
 
 ```bash
-# Terminal 1 — start the shared browser
+# Terminal 1 — start the shared browser (add HEADLESS=true on a box with no X display)
 CDP_PORT=9222 python launch_browser.py
 
 # Terminal 2 — start the MCP server pointing at it
@@ -160,3 +221,20 @@ plugin_api.py  (Python CRUD logic)
     ▼
 Playwright browser  →  window.projectionlabPluginAPI.*()  →  ProjectionLab
 ```
+
+## Reverse-engineering the schema
+
+ProjectionLab's export format is undocumented. `docs/schema.md` records everything that has
+been verified against real data, and the loop for verifying more is:
+
+```bash
+CDP_PORT=9222 .venv/bin/python tools/probe.py snap before   # export -> backups/snap-before.json
+#   ...change one thing in the ProjectionLab UI (via the shared browser)...
+CDP_PORT=9222 .venv/bin/python tools/probe.py snap after
+.venv/bin/python tools/probe.py diff before after            # every added/removed/changed path
+.venv/bin/python tools/probe.py show after "plans.[id=<plan>].expenses.events.[id=<event>]"
+```
+
+`tests/schema/test_live_export.py` validates the newest backup (or `--live` data) against the
+Pydantic models and is the first thing to run after a ProjectionLab release.
+`backups/` is gitignored: it holds your real financial data.

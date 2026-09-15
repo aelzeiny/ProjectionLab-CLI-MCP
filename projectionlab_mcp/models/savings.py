@@ -6,6 +6,16 @@ from .common import WithdrawAge
 
 
 class SavingsAccount(BaseModel):
+    """A savings account in Current Finances (today.savingsAccounts).
+
+    Verified against the record ProjectionLab 4.6 creates from the "Add Savings" button:
+      color="teal-lighten-1", icon="mdi-piggy-bank", investmentGrowthType="none",
+      dividendType="plan", repurpose=True, withdrawAge={keyword now include}.
+    The Current Finances page only exposes Balance and Owner; the other fields are set
+    from the plan editor. Unknown/extra fields are preserved.
+    """
+    model_config = {"extra": "allow"}
+
     id: str
     name: str
     title: str
@@ -17,10 +27,9 @@ class SavingsAccount(BaseModel):
     liquid: bool
     withdraw: bool
     repurpose: bool
-    isPassiveIncome: bool
-    investmentGrowthType: Literal["fixed", "portfolio"]
+    investmentGrowthType: str  # observed: "none", "plan" (investment accounts also use "plan")
     investmentGrowthRate: float
-    dividendType: Literal["none", "reinvest", "income"]
+    dividendType: str          # observed: "plan"
     dividendRate: float
     withdrawAge: WithdrawAge
 
@@ -32,15 +41,14 @@ class NewSavingsAccount(BaseModel):
     type: Literal["savings"] = "savings"
     owner: Annotated[Literal["me", "spouse"], Field(description='Account owner: "me" or "spouse".')]
     balance: Annotated[float, Field(description="Current balance.")]
-    color: str = "#4CAF50"
-    icon: str = "savings"
+    color: str = "teal-lighten-1"
+    icon: str = "mdi-piggy-bank"
     liquid: bool = True
     withdraw: bool = True
-    repurpose: bool = False
-    isPassiveIncome: bool = False
-    investmentGrowthType: Literal["fixed", "portfolio"] = "fixed"
-    investmentGrowthRate: float = 0.05
-    dividendType: Literal["none", "reinvest", "income"] = "none"
+    repurpose: bool = True
+    investmentGrowthType: str = "none"
+    investmentGrowthRate: float = 0.0
+    dividendType: str = "plan"
     dividendRate: float = 0.0
     withdrawAge: WithdrawAge = Field(
         default_factory=lambda: WithdrawAge(type="keyword", modifier="include", value="now")

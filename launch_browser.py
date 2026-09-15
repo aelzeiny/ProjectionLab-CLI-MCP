@@ -1,7 +1,8 @@
 """
 Dev-mode browser launcher.
 
-Starts a visible Chromium instance with CDP exposed on CDP_PORT (default 9222),
+Starts a Chromium instance with CDP exposed on CDP_PORT (default 9222) — visible by
+default, headless when HEADLESS=true (e.g. on a box with no X display) —
 then blocks so browser-mcp (configured with --cdp-endpoint http://localhost:PORT)
 and the MCP server (CDP_PORT env var) can both attach to the same browser.
 
@@ -18,15 +19,16 @@ from playwright.async_api import async_playwright
 load_dotenv()
 
 PORT = int(os.getenv("CDP_PORT", "9222"))
+HEADLESS = os.getenv("HEADLESS", "false").lower() == "true"
 
 
 async def main():
     async with async_playwright() as p:
         browser = await p.chromium.launch(
-            headless=False,
+            headless=HEADLESS,
             args=[f"--remote-debugging-port={PORT}"],
         )
-        print(f"Browser running. CDP endpoint: http://localhost:{PORT}")
+        print(f"Browser running ({'headless' if HEADLESS else 'headed'}). CDP endpoint: http://localhost:{PORT}", flush=True)
         print("Start the MCP server (CDP_PORT={PORT} python server.py) and reload Claude Code.")
         print("Press Ctrl+C to stop.")
 

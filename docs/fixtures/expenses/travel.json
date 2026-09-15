@@ -1,0 +1,34 @@
+{
+  "amount": 100,
+  "amountType": "today$",
+  "color": "cyan-lighten-1",
+  "end": {
+    "modifier": "include",
+    "type": "keyword",
+    "value": "endOfPlan"
+  },
+  "frequency": "yearly",
+  "frequencyChoices": true,
+  "icon": "mdi-airplane",
+  "id": "3f35c09a-3cd9-431c-9566-217b008c5b6d",
+  "name": "Travel",
+  "owner": "me",
+  "planPath": "expenses",
+  "repeat": false,
+  "spendingType": "discretionary",
+  "start": {
+    "modifier": "include",
+    "type": "keyword",
+    "value": "now"
+  },
+  "title": "Travel",
+  "type": "travel",
+  "yearlyChange": {
+    "amount": 0,
+    "amountType": "today$",
+    "limit": 0,
+    "limitEnabled": false,
+    "limitType": "today$",
+    "type": "match-inflation"
+  }
+}

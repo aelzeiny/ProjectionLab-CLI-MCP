@@ -1,0 +1,35 @@
+{
+  "amount": 100,
+  "amountType": "grow$",
+  "color": "red-lighten-1",
+  "deductFromIncomeId": "",
+  "end": {
+    "modifier": "include",
+    "type": "keyword",
+    "value": "endOfPlan"
+  },
+  "frequency": "yearly",
+  "frequencyChoices": true,
+  "icon": "mdi-medical-bag",
+  "id": "b4674acc-0130-44f4-983d-12f8aab69c48",
+  "name": "Medical Expenses",
+  "owner": "me",
+  "planPath": "expenses",
+  "repeat": false,
+  "spendingType": "essential",
+  "start": {
+    "modifier": "include",
+    "type": "keyword",
+    "value": "now"
+  },
+  "title": "Medical Expenses",
+  "type": "medical",
+  "yearlyChange": {
+    "amount": 2,
+    "amountType": "today$",
+    "limit": 0,
+    "limitEnabled": false,
+    "limitType": "today$",
+    "type": "inflation+"
+  }
+}

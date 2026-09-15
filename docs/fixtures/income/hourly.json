@@ -1,0 +1,64 @@
+{
+  "amount": 0.25,
+  "amountType": "today$",
+  "contribsReduceTaxableIncome": true,
+  "end": {
+    "modifier": "include",
+    "type": "milestone",
+    "value": "retirement"
+  },
+  "frequency": "yearly",
+  "frequencyChoices": false,
+  "goPartTime": false,
+  "hasPension": false,
+  "hoursPerWeek": 40,
+  "icon": "mdi-briefcase-clock",
+  "id": "70a0238f-e95a-4f3d-a1d4-0a9fccf3c8c1",
+  "name": "Hourly Wage",
+  "owner": "me",
+  "partTimeEnd": {
+    "modifier": "include",
+    "type": "milestone",
+    "value": "retirement"
+  },
+  "partTimeRate": 50,
+  "partTimeStart": {
+    "modifier": "include",
+    "type": "keyword",
+    "value": "now"
+  },
+  "pensionContribution": 0,
+  "pensionContributionType": "%",
+  "pensionPayoutAmount": 0,
+  "pensionPayoutRate": 25,
+  "pensionPayoutType": "fap",
+  "pensionPayoutsAreTaxFree": false,
+  "pensionPayoutsEnd": {
+    "modifier": "include",
+    "type": "keyword",
+    "value": "endOfPlan"
+  },
+  "pensionPayoutsStart": {
+    "modifier": "include",
+    "type": "milestone",
+    "value": "retirement"
+  },
+  "planPath": "income",
+  "start": {
+    "type": "keyword",
+    "value": "beforeCurrentYear"
+  },
+  "taxCharacter": "auto",
+  "taxExempt": false,
+  "title": "Hourly Wage",
+  "type": "hourly",
+  "withholdingMode": "auto",
+  "yearlyChange": {
+    "amount": 0,
+    "amountType": "today$",
+    "limit": 0,
+    "limitEnabled": false,
+    "limitType": "today$",
+    "type": "match-inflation"
+  }
+}

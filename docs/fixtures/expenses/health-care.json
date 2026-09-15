@@ -1,0 +1,34 @@
+{
+  "amount": 100,
+  "amountType": "grow$",
+  "color": "pink-lighten-1",
+  "deductFromIncomeId": "",
+  "end": {
+    "modifier": "include",
+    "type": "keyword",
+    "value": "endOfPlan"
+  },
+  "frequency": "yearly",
+  "frequencyChoices": true,
+  "healthcareType": "standard",
+  "icon": "mdi-heart-plus",
+  "id": "e7c7d5cf-6222-4090-be26-083dd79eb205",
+  "name": "Health Care",
+  "owner": "me",
+  "planPath": "expenses",
+  "spendingType": "essential",
+  "start": {
+    "type": "keyword",
+    "value": "beforeCurrentYear"
+  },
+  "title": "Health Care",
+  "type": "health-care",
+  "yearlyChange": {
+    "amount": 2,
+    "amountType": "today$",
+    "limit": 0,
+    "limitEnabled": false,
+    "limitType": "today$",
+    "type": "inflation+"
+  }
+}

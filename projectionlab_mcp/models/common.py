@@ -1,22 +1,32 @@
 from __future__ import annotations
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, Literal, Optional
 from pydantic import BaseModel, Field
 
 
 class TimeRef(BaseModel):
-    """A point in time used for asset/debt start, end, and effective dates.
+    """A point in time (start/end/effective dates on accounts, assets, debts, income, expenses, priorities).
 
-    Use a keyword reference for common anchors:
-      {"type": "keyword", "value": "beforeCurrentYear"}  — already owned/active
-      {"type": "keyword", "value": "now"}                — current year
-      {"type": "keyword", "value": "never"}              — no end / holds indefinitely
-      {"type": "keyword", "value": "retirement"}         — at retirement age
+    Every shape observed in real exportData() output (ProjectionLab 4.6):
 
-    Use an age reference to trigger at a specific age:
-      {"type": "age", "value": "65"}
+      {"type": "keyword",   "value": "beforeCurrentYear"}                     — already owned/active
+      {"type": "keyword",   "value": "now", "modifier": "exclude"}            — current year
+      {"type": "keyword",   "value": "never"}                                 — no end
+      {"type": "keyword",   "value": "endOfPlan", "modifier": "include"}      — until the plan ends
+      {"type": "age",       "value": "65"}                                    — at a given age
+      {"type": "milestone", "value": "retirement", "modifier": "exclude"}     — built-in milestone
+      {"type": "milestone", "value": "spouseRetirement", "modifier": "exclude"}
+      {"type": "milestone", "value": "<milestone uuid>", "modifier": "include"}
+      {"type": "date",      "value": "2027-01-01"}                            — a specific month (day is 01)
+      {"type": "date",      "value": "2027-01-01", "modifier": "include"}
+      {"type": "year",      "value": "2059"}                                  — a specific year
+
+    modifier (optional): "include" = inclusive boundary, "exclude" = exclusive boundary.
+    Many UI-created refs omit it entirely; when present on `start` it is usually "include"
+    and on `end` usually "exclude".
     """
-    type: Literal["keyword", "age"]
-    value: Annotated[str, Field(description='For keyword: "beforeCurrentYear", "now", "never", "retirement". For age: a numeric string like "65".')]
+    type: Literal["keyword", "age", "milestone", "date", "year"]
+    value: Annotated[str, Field(description='keyword: "beforeCurrentYear" | "now" | "never" | "endOfPlan"; age: "65"; milestone: "retirement" | "spouseRetirement" | uuid; date: "YYYY-MM-01"; year: "YYYY".')]
+    modifier: Optional[Literal["include", "exclude"]] = None
 
 
 class WithdrawAge(BaseModel):

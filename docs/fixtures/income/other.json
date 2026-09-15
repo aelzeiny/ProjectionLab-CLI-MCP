@@ -1,0 +1,35 @@
+{
+  "amount": 100,
+  "amountType": "today$",
+  "end": {
+    "modifier": "include",
+    "type": "milestone",
+    "value": "retirement"
+  },
+  "frequency": "yearly",
+  "frequencyChoices": true,
+  "icon": "mdi-currency-usd-circle",
+  "id": "9102a1a2-fff3-4890-abb9-7bd5be8f5568",
+  "name": "Custom Income",
+  "owner": "me",
+  "planPath": "income",
+  "preventOverflow": false,
+  "repeat": false,
+  "start": {
+    "type": "keyword",
+    "value": "beforeCurrentYear"
+  },
+  "taxCharacter": "auto",
+  "taxExempt": false,
+  "title": "Custom Income",
+  "type": "other",
+  "withholdingMode": "auto",
+  "yearlyChange": {
+    "amount": 0,
+    "amountType": "today$",
+    "limit": 0,
+    "limitEnabled": false,
+    "limitType": "today$",
+    "type": "match-inflation"
+  }
+}

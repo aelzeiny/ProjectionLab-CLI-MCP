@@ -1,625 +1,339 @@
+"""
+Plan-level income events (plan.income.events[]).
+
+Every type, field, default and enum value here was captured on 2026-09-13 from ProjectionLab
+4.6's "New Income" dialog: one event of each kind was added with only a name and amount, and
+one Custom Income per dropdown option was added to learn what each option stores. Raw captures
+live in docs/fixtures/income/; tests/schema/test_income_fixtures.py pins the defaults to them.
+Models allow extra fields so nothing the app writes is dropped on a round trip.
+
+UI choice        stored `type`
+  Salary           salary
+  Hourly Wage      hourly
+  RSU Grant        rsu
+  Inheritance      inheritance
+  Side Hustle      side-hustle
+  Tax Credit       tax-credit
+  Tax Deduction    tax-deduction
+  Pension Income   pension
+  Social Security  social-security
+  Custom Income    other
+
+Dropdown label -> stored value (from the Custom Income form; the same selects appear on the
+other types where relevant):
+
+  Frequency:           Yearly=yearly  Once Per Year=yearly-lump-sum  Quarterly=quarterly
+                       Monthly=monthly  Bi-Weekly=bi-weekly  Weekly=weekly  Daily=daily
+                       Once=once (also sets start to {keyword now include})
+  Change Over Time:    None=none  Increase=increase  Decrease=decrease  Match Inflation=match-inflation
+                       Match Inflation +X%=inflation+  Match Inflation -X%=inflation-  Advanced=(not captured)
+                       (`yearlyChange.amount` holds the X)
+  Tax Handling Type:   Auto=auto  Wage=wage  Self-Employment=selfEmployment  Ordinary=ordinary
+                       Dividend=dividend  Capital Gains=capGains            -> `taxCharacter`
+  Withholding:         Auto=auto  Fixed Rate=fixed (+ `withholdingRate`)  None=none -> `withholdingMode`
+  Passive Income:      Auto=(field absent)  Yes=true  No=false             -> `isPassiveIncome`
+  Send To:             Automatic=(field absent)  Specific Account=`routeToAccounts: [<plan.accounts event id>]`
+  Recurrence / Repeat: `repeat: true, repeatEnd {keyword endOfPlan include}, repeatInterval 0,
+                        repeatIntervalType "between", repeatScaler 0`
+  Earner:              You=me  <spouse name>=spouse  Joint=(not captured)
+"""
 from __future__ import annotations
+
 import uuid
-from typing import Annotated, Literal, Optional
+from typing import Annotated, Any, Literal, Optional
 from pydantic import BaseModel, Field
 
+from .common import TimeRef
 
-class IncomeTimeRef(BaseModel):
-    """A point in time used for income start/end/part-time/pension dates.
+# Kept for backwards compatibility; the shared TimeRef covers every observed shape.
+IncomeTimeRef = TimeRef
 
-    type="keyword":
-      value: "beforeCurrentYear" | "now" | "retirement" | "endOfPlan" | "never"
-    type="age":
-      value: numeric string e.g. "65"
-    type="milestone":
-      value: milestone ID string e.g. "retirement", "fi", or a custom milestone UUID
 
-    modifier (optional):
-      "exclude" — exclusive boundary (e.g. end *before* retirement)
-      "include" — inclusive boundary (e.g. end *at* retirement)
-    """
-    type: Literal["keyword", "age", "milestone"]
-    value: str
-    modifier: Optional[Literal["include", "exclude"]] = None
+def _kw(value: str, modifier: str | None = None) -> TimeRef:
+    return TimeRef(type="keyword", value=value, modifier=modifier)
+
+
+def _ms(value: str, modifier: str | None = "include") -> TimeRef:
+    return TimeRef(type="milestone", value=value, modifier=modifier)
 
 
 class IncomeYearlyChange(BaseModel):
-    """How the income amount changes year-over-year.
+    """"Change Over Time". `type` ∈ none | increase | decrease | match-inflation | inflation+ | inflation-
+    (plus an "Advanced" mode that has not been captured). `amount` is the yearly % for
+    increase/decrease/inflation±."""
+    model_config = {"extra": "allow"}
 
-    type values:
-      "none"                  — no change (stays flat in nominal terms)
-      "increase"              — increases by `amount` % per year; optional `limitEnabled`/`limit`
-      "decrease"              — decreases by `amount` % per year; optional `limitEnabled`/`limit`
-      "match-inflation"       — tracks inflation (constant in Today's Currency)
-      "match-inflation-plus"  — inflation + `amount` % extra per year
-      "match-inflation-minus" — inflation - `amount` % per year
-      "advanced"              — custom multi-point schedule (UI-only; stored as opaque data)
-
-    limitType: "today$" | "actual$"  — currency unit for the cap value
-    limitEnabled: when True, growth is capped at `limit`
-    """
-    type: Literal[
-        "none", "increase", "decrease",
-        "match-inflation", "match-inflation-plus", "match-inflation-minus",
-        "advanced"
-    ] = "match-inflation"
-    amount: float = Field(default=0, description="% per year change (used by increase/decrease/match-inflation-plus/minus).")
+    type: str = "match-inflation"
+    amount: float = 0
     amountType: str = "today$"
-    limit: float = Field(default=0, description="Cap on total amount (used when limitEnabled=True).")
-    limitType: Literal["today$", "actual$"] = "today$"
-    limitEnabled: bool = False
+    limit: Optional[float] = 0
+    limitEnabled: Optional[bool] = False
+    limitType: Optional[str] = "today$"
 
 
-class Salary(BaseModel):
-    """A salary income event as stored in plan.income.events.
+YC_INFLATION = lambda: IncomeYearlyChange()               # noqa: E731
+YC_NONE = lambda: IncomeYearlyChange(type="none")         # noqa: E731
 
-    All fields are present — use model_dump(exclude_none=True) when writing back
-    if you want to strip None values, but it is safer to round-trip the full object.
-    """
+
+class BaseIncome(BaseModel):
+    """Fields present on every income event the UI creates."""
     model_config = {"extra": "allow"}
 
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    type: str
+    name: str
+    title: str
+    icon: str
+    owner: str = "me"                   # observed: "me", "spouse" (UI also offers "Joint": value not captured)
     planPath: Literal["income"] = "income"
+    amount: float = 0
+    amountType: str = "today$"
+    frequency: str = "yearly"           # see module docstring for every value
+    frequencyChoices: bool = True
+    start: TimeRef = Field(default_factory=lambda: _kw("beforeCurrentYear"))
+    end: TimeRef = Field(default_factory=lambda: _ms("retirement"))
+    yearlyChange: IncomeYearlyChange = Field(default_factory=YC_INFLATION)
+    # Optional extras the UI writes only when set (see module docstring).
+    key: Optional[float] = None
+    hidden: Optional[bool] = None
+    isPassiveIncome: Optional[bool] = None
+    routeToAccounts: Optional[list[str]] = None
+    repeatEnd: Optional[TimeRef] = None
+    repeatInterval: Optional[float] = None
+    repeatIntervalType: Optional[str] = None
+    repeatScaler: Optional[float] = None
+
+
+class TaxedIncome(BaseIncome):
+    """Income with Tax Handling Type + Withholding + Tax-Exempt controls."""
+    taxCharacter: str = "auto"
+    taxExempt: bool = False
+    withholdingMode: str = "auto"
+    withholdingRate: Optional[float] = None   # only when withholdingMode == "fixed"
+
+
+class _EmploymentFields(BaseModel):
+    """Part-Time Work and Defined Benefit Pension sub-forms (Salary and Hourly Wage)."""
+    contribsReduceTaxableIncome: bool = True
+    goPartTime: bool = False
+    partTimeStart: TimeRef = Field(default_factory=lambda: _kw("now", "include"))
+    partTimeEnd: TimeRef = Field(default_factory=lambda: _ms("retirement"))
+    partTimeRate: float = 50
+    hasPension: bool = False
+    pensionContribution: float = 0
+    pensionContributionType: str = "%"
+    pensionPayoutAmount: float = 0
+    pensionPayoutRate: float = 25
+    pensionPayoutType: str = "fap"
+    pensionPayoutsAreTaxFree: bool = False
+    pensionPayoutsStart: TimeRef = Field(default_factory=lambda: _ms("retirement"))
+    pensionPayoutsEnd: TimeRef = Field(default_factory=lambda: _kw("endOfPlan", "include"))
+
+
+class Salary(TaxedIncome, _EmploymentFields):
+    type: Literal["salary"] = "salary"
+    title: str = "Salary"
+    icon: str = "mdi-office-building"
+
+
+class HourlyWage(TaxedIncome, _EmploymentFields):
+    """`amount` is the hourly rate; `hoursPerWeek` × rate gives the yearly figure."""
+    type: Literal["hourly"] = "hourly"
+    title: str = "Hourly Wage"
+    icon: str = "mdi-briefcase-clock"
+    frequencyChoices: bool = False
+    hoursPerWeek: float = 40
+
+
+class RsuGrant(TaxedIncome):
+    type: Literal["rsu"] = "rsu"
+    title: str = "RSU Grant"
+    icon: str = "mdi-finance"
+    frequency: str = "once"
+    start: TimeRef = Field(default_factory=lambda: _kw("now", "include"))
+    yearlyChange: IncomeYearlyChange = Field(default_factory=YC_NONE)
+    repeat: bool = False
+
+
+class SideHustle(TaxedIncome):
+    type: Literal["side-hustle"] = "side-hustle"
+    title: str = "Side Hustle"
+    icon: str = "mdi-piggy-bank"
+    taxCharacter: str = "selfEmployment"
+    yearlyChange: IncomeYearlyChange = Field(default_factory=YC_NONE)
+    repeat: bool = False
+
+
+class CustomIncome(TaxedIncome):
+    """UI: "Custom Income" (stored type "other")."""
+    type: Literal["other"] = "other"
+    title: str = "Custom Income"
+    icon: str = "mdi-currency-usd-circle"
+    preventOverflow: bool = False
+    repeat: bool = False
+
+
+class Inheritance(BaseIncome):
+    """Has Tax Handling Type and Tax-Exempt but no Withholding control."""
+    type: Literal["inheritance"] = "inheritance"
+    title: str = "Inheritance"
+    icon: str = "mdi-gift"
+    frequency: str = "once"
+    start: TimeRef = Field(default_factory=lambda: _kw("now", "include"))
+    yearlyChange: IncomeYearlyChange = Field(default_factory=YC_NONE)
+    taxCharacter: str = "auto"
+    taxExempt: bool = False
+    repeat: bool = False
+
+
+class TaxCredit(BaseIncome):
+    """`amount` is the credit; reduces tax in `jurisdictions` for `taxType`."""
+    type: Literal["tax-credit"] = "tax-credit"
+    title: str = "Tax Credit"
+    icon: str = "mdi-file-document-outline"
+    frequency: str = "once"
+    start: TimeRef = Field(default_factory=lambda: _kw("now", "include"))
+    yearlyChange: IncomeYearlyChange = Field(default_factory=YC_NONE)
+    jurisdictions: list[str] = Field(default_factory=lambda: ["federal"])
+    taxType: str = "income"
+    refundable: bool = False
+    repeat: bool = False
+
+
+class TaxDeduction(BaseIncome):
+    type: Literal["tax-deduction"] = "tax-deduction"
+    title: str = "Tax Deduction"
+    icon: str = "mdi-file-document-outline"
+    frequency: str = "once"
+    start: TimeRef = Field(default_factory=lambda: _kw("now", "include"))
+    yearlyChange: IncomeYearlyChange = Field(default_factory=YC_NONE)
+    jurisdictions: list[str] = Field(default_factory=lambda: ["federal"])
+    taxType: str = "income"
+    itemized: bool = False
+    repeat: bool = False
+
+
+class PensionIncome(BaseIncome):
+    """Runs from retirement to end of plan; Withholding + Tax-Exempt but no Tax Handling Type."""
+    type: Literal["pension"] = "pension"
+    title: str = "Pension Income"
+    icon: str = "mdi-account-clock"
+    start: TimeRef = Field(default_factory=lambda: _ms("retirement"))
+    end: TimeRef = Field(default_factory=lambda: _kw("endOfPlan", "include"))
+    taxExempt: bool = False
+    withholdingMode: str = "auto"
+    withholdingRate: Optional[float] = None
+
+
+class SocialSecurity(BaseIncome):
+    """`amount` stays 0; the benefit comes from `primaryInsuranceAmount` × `expectedPercent`
+    (or is estimated when `estimateIncome`). The UI sets `start` to a date derived from the
+    earner's birth date (age 67 for the captured record), so pass it explicitly."""
+    type: Literal["social-security"] = "social-security"
+    title: str = "Social Security"
+    icon: str = "mdi-account-supervisor-circle-outline"
+    end: TimeRef = Field(default_factory=lambda: _kw("endOfPlan", "include"))
+    taxExempt: bool = False
+    country: str = "US"
+    estimateIncome: bool = True
+    expectedPercent: float = 100
+    primaryInsuranceAmount: float = 0
+
+
+Income = Annotated[
+    Salary | HourlyWage | RsuGrant | SideHustle | CustomIncome | Inheritance
+    | TaxCredit | TaxDeduction | PensionIncome | SocialSecurity,
+    Field(discriminator="type"),
+]
+
+INCOME_MODELS: dict[str, type[BaseIncome]] = {
+    "salary": Salary,
+    "hourly": HourlyWage,
+    "rsu": RsuGrant,
+    "side-hustle": SideHustle,
+    "other": CustomIncome,
+    "inheritance": Inheritance,
+    "tax-credit": TaxCredit,
+    "tax-deduction": TaxDeduction,
+    "pension": PensionIncome,
+    "social-security": SocialSecurity,
+}
+
+IncomeType = Literal[
+    "salary", "hourly", "rsu", "side-hustle", "other", "inheritance",
+    "tax-credit", "tax-deduction", "pension", "social-security",
+]
+
+
+# ── creation parameters ──────────────────────────────────────────────────────
+
+class NewIncome(BaseModel):
+    """Parameters for adding an income event of any verified type to a plan.
+
+    Only `type`, `name` and `amount` are required; everything else defaults to exactly what
+    the ProjectionLab "New Income" dialog stores for that type. Enum values are listed in the
+    module docstring of models/income.py.
+    """
+    type: Annotated[IncomeType, Field(description="Income kind (UI choice).")]
+    name: Annotated[str, Field(description="Display name.")]
+    amount: Annotated[float, Field(description="Amount per `frequency` in today's dollars (hourly: the hourly rate; social-security: leave 0 and set primaryInsuranceAmount in extra).")]
+    owner: Annotated[str, Field(description='"me" or "spouse".')] = "me"
+    frequency: Annotated[Optional[str], Field(description="yearly | yearly-lump-sum | quarterly | monthly | bi-weekly | weekly | daily | once")] = None
+    start: Optional[TimeRef] = None
+    end: Optional[TimeRef] = None
+    yearlyChange: Optional[IncomeYearlyChange] = None
+    taxCharacter: Annotated[Optional[str], Field(description="auto | wage | selfEmployment | ordinary | dividend | capGains (types with a Tax Handling control only)")] = None
+    withholdingMode: Annotated[Optional[str], Field(description="auto | fixed | none (types with a Withholding control only)")] = None
+    withholdingRate: Annotated[Optional[float], Field(description="Percent, used with withholdingMode='fixed'.")] = None
+    taxExempt: Optional[bool] = None
+    isPassiveIncome: Optional[bool] = None
+    routeToAccounts: Annotated[Optional[list[str]], Field(description="plan.accounts event ids to send this income to.")] = None
+    extra: Annotated[dict[str, Any], Field(description="Any other type-specific fields (hoursPerWeek, goPartTime, hasPension, jurisdictions, primaryInsuranceAmount, repeat...).")] = Field(default_factory=dict)
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+
+    _PASSTHROUGH = ("frequency", "start", "end", "yearlyChange", "isPassiveIncome", "routeToAccounts")
+    _TAXED = ("taxCharacter", "withholdingMode", "withholdingRate", "taxExempt")
+
+    def to_income(self) -> BaseIncome:
+        model = INCOME_MODELS[self.type]
+        kwargs: dict[str, Any] = {"id": self.id, "name": self.name, "amount": self.amount, "owner": self.owner}
+        for f in self._PASSTHROUGH:
+            if getattr(self, f) is not None:
+                kwargs[f] = getattr(self, f)
+        for f in self._TAXED:
+            v = getattr(self, f)
+            if v is not None and f in model.model_fields:
+                kwargs[f] = v
+        kwargs.update(self.extra)
+        return model(**kwargs)
+
+
+class NewSalary(NewIncome):
     type: Literal["salary"] = "salary"
 
-    # Display
-    name: str = Field(description="Internal name (also used as display label).")
-    title: str = Field(description="Display title shown in UI (usually same as name).")
-    icon: str = Field(default="mdi-office-building", description="Material Design icon name.")
-    owner: Literal["me", "spouse"] = Field(default="me", description='Who earns this income: "me" or "spouse".')
-
-    # Amount
-    amount: float = Field(description="Annual income amount.")
-    amountType: Literal["today$", "actual$"] = Field(default="today$", description='"today$" = entered in Today\'s Currency (inflation-adjusted); "actual$" = nominal future dollars.')
-    frequency: Literal["yearly", "monthly", "weekly", "bi-weekly"] = Field(default="yearly", description="How often the amount is paid. The app normalises to an annual figure.")
-    frequencyChoices: bool = Field(default=True, description="When True, the UI allows changing the payment frequency.")
-
-    # Time range
-    start: IncomeTimeRef = Field(
-        default_factory=lambda: IncomeTimeRef(type="keyword", value="beforeCurrentYear"),
-        description="When this income begins.",
-    )
-    end: IncomeTimeRef = Field(
-        default_factory=lambda: IncomeTimeRef(type="milestone", value="retirement"),
-        description="When this income ends.",
-    )
-
-    # Change over time
-    yearlyChange: IncomeYearlyChange = Field(default_factory=IncomeYearlyChange, description="How the income amount changes year-over-year.")
-
-    # Tax handling
-    taxExempt: bool = Field(default=False, description="If True, this income is fully exempt from income tax.")
-    taxWithholding: bool = Field(default=True, description="If True, a portion is withheld each period and returned as a refund if over-withheld.")
-    withhold: float = Field(default=25, description="% of income to withhold for taxes (only applies when taxWithholding=True).")
-
-    # Advanced tax flags (visible under Advanced Options)
-    selfEmployment: bool = Field(default=False, description="Counts as self-employment income (subject to SE tax).")
-    wage: bool = Field(default=False, description="Counts as wage income. Mutually exclusive with selfEmployment.")
-    isDividendIncome: bool = Field(default=False, description="Treat as dividend income.")
-    isPassiveIncome: bool = Field(default=False, description="Counts as passive income.")
-
-    # Send To (Advanced Options)
-    preventOverflow: bool = Field(default=False, description="If True, income is directed to a specific account instead of normal cash flow.")
-
-    # Recurrence
-    repeat: bool = Field(default=False, description="Enable recurrence (repeating schedule).")
-
-    # Part-time (More Options → Switch to part-time)
-    goPartTime: bool = Field(default=False, description="If True, income drops to partTimeRate% for the period between partTimeStart and partTimeEnd.")
-    partTimeStart: IncomeTimeRef = Field(
-        default_factory=lambda: IncomeTimeRef(type="keyword", value="now"),
-        description="When the part-time period begins.",
-    )
-    partTimeEnd: IncomeTimeRef = Field(
-        default_factory=lambda: IncomeTimeRef(type="milestone", value="retirement"),
-        description="When the part-time period ends.",
-    )
-    partTimeRate: float = Field(default=50, description="Part-time income as % of full salary.")
-
-    # Defined Benefit Pension (More Options → Has Defined Benefit Pension)
-    hasPension: bool = Field(default=False, description="If True, a defined-benefit pension is attached to this income.")
-    pensionContribution: float = Field(default=0, description="Contribution amount or rate (% or $) per year while working.")
-    pensionContributionType: Literal["%", "$"] = Field(default="%", description='Whether pensionContribution is a percentage of salary ("%") or a fixed dollar amount ("$").')
-    contribsReduceTaxableIncome: bool = Field(default=True, description="If True, pension contributions reduce taxable income in the year they are made.")
-    pensionPayoutsStart: IncomeTimeRef = Field(
-        default_factory=lambda: IncomeTimeRef(type="milestone", value="retirement"),
-        description="When pension payouts begin.",
-    )
-    pensionPayoutsEnd: IncomeTimeRef = Field(
-        default_factory=lambda: IncomeTimeRef(type="keyword", value="endOfPlan"),
-        description="When pension payouts end.",
-    )
-    pensionPayoutType: Literal["fap", "cap", "fixed"] = Field(
-        default="fap",
-        description='"fap" = % of Final Average Pay, "cap" = % of Career Average Pay, "fixed" = fixed annual amount in Today\'s Currency.'
-    )
-    pensionPayoutRate: float = Field(default=25, description="Payout as % of average pay (used for fap/cap types).")
-    pensionPayoutAmount: float = Field(default=0, description="Fixed annual payout amount in Today's Currency (used for 'fixed' type).")
-    pensionPayoutsAreTaxFree: bool = Field(default=False, description="If True, pension payouts are treated as tax-free income.")
+    def to_salary(self) -> Salary:
+        return self.to_income()  # type: ignore[return-value]
 
 
-class HourlyWage(BaseModel):
-    """An hourly wage income event as stored in plan.income.events.
-
-    Like Salary but amount is the hourly rate and hoursPerWeek controls total hours.
-    The app computes annual income as: amount * hoursPerWeek * 52.
-
-    Key differences from Salary:
-      - type = "hourly"
-      - amount = hourly rate (not annual)
-      - hoursPerWeek = hours worked per week (default 40)
-      - frequencyChoices = False (not user-configurable)
-      - icon = "mdi-briefcase-clock"
-      - default withhold = 20 (vs 25 for salary)
-      - default end has modifier="exclude"
-    """
-    model_config = {"extra": "allow"}
-
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    planPath: Literal["income"] = "income"
+class NewHourlyWage(NewIncome):
     type: Literal["hourly"] = "hourly"
-
-    # Display
-    name: str = Field(description="Internal name (also used as display label).")
-    title: str = Field(description="Display title shown in UI (usually same as name).")
-    icon: str = Field(default="mdi-briefcase-clock", description="Material Design icon name.")
-    owner: Literal["me", "spouse"] = Field(default="me", description='Who earns this income: "me" or "spouse".')
-
-    # Amount — hourly rate; app computes yearly = amount * hoursPerWeek * 52
-    amount: float = Field(description="Hourly rate.")
-    amountType: Literal["today$", "actual$"] = Field(default="today$", description='"today$" = entered in Today\'s Currency (inflation-adjusted); "actual$" = nominal future dollars.')
-    hoursPerWeek: float = Field(default=40, description="Hours worked per week. Annual income = amount × hoursPerWeek × 52.")
-    frequency: Literal["yearly"] = Field(default="yearly", description="Always 'yearly' for hourly wage (the app normalises internally); not user-configurable.")
-    frequencyChoices: bool = Field(default=False, description="Always False for hourly wage — frequency is driven by hoursPerWeek, not a UI choice.")
-
-    # Time range
-    start: IncomeTimeRef = Field(
-        default_factory=lambda: IncomeTimeRef(type="keyword", value="beforeCurrentYear"),
-        description="When this income begins.",
-    )
-    end: IncomeTimeRef = Field(
-        default_factory=lambda: IncomeTimeRef(type="milestone", value="retirement", modifier="exclude"),
-        description='When this income ends. Defaults to retirement (exclusive — ends the year before retirement).',
-    )
-
-    # Change over time
-    yearlyChange: IncomeYearlyChange = Field(default_factory=IncomeYearlyChange, description="How the hourly rate changes year-over-year.")
-
-    # Tax handling
-    taxExempt: bool = Field(default=False, description="If True, this income is fully exempt from income tax.")
-    taxWithholding: bool = Field(default=True, description="If True, a portion is withheld each period and returned as a refund if over-withheld.")
-    withhold: float = Field(default=20, description="% of income to withhold for taxes (only applies when taxWithholding=True). Default is 20 for hourly (vs 25 for salary).")
-
-    # Advanced tax flags
-    selfEmployment: bool = Field(default=False, description="Counts as self-employment income (subject to SE tax).")
-    wage: bool = Field(default=False, description="Counts as wage income. Mutually exclusive with selfEmployment.")
-    isDividendIncome: bool = Field(default=False, description="Treat as dividend income.")
-    isPassiveIncome: bool = Field(default=False, description="Counts as passive income.")
-
-    # Send To
-    routeToAccounts: Optional[str] = Field(default=None, description="Account ID to route income to. Null means automatic cash flow.")
-    preventOverflow: bool = Field(default=False, description="If True, income is directed to a specific account instead of normal cash flow.")
-
-    # Recurrence
-    repeat: bool = Field(default=False, description="Enable recurrence (repeating schedule).")
-
-    # Part-time
-    goPartTime: bool = Field(default=False, description="If True, income drops to partTimeRate% for the period between partTimeStart and partTimeEnd.")
-    partTimeStart: IncomeTimeRef = Field(
-        default_factory=lambda: IncomeTimeRef(type="keyword", value="now"),
-        description="When the part-time period begins.",
-    )
-    partTimeEnd: IncomeTimeRef = Field(
-        default_factory=lambda: IncomeTimeRef(type="milestone", value="retirement"),
-        description="When the part-time period ends.",
-    )
-    partTimeRate: float = Field(default=50, description="Part-time income as % of full hourly wage.")
-
-    # Defined Benefit Pension
-    hasPension: bool = Field(default=False, description="If True, a defined-benefit pension is attached to this income.")
-    pensionContribution: float = Field(default=0, description="Contribution amount or rate (% or $) per year while working.")
-    pensionContributionType: Literal["%", "$"] = Field(default="%", description='Whether pensionContribution is a percentage of income ("%") or a fixed dollar amount ("$").')
-    contribsReduceTaxableIncome: bool = Field(default=True, description="If True, pension contributions reduce taxable income in the year they are made.")
-    pensionPayoutsStart: IncomeTimeRef = Field(
-        default_factory=lambda: IncomeTimeRef(type="milestone", value="retirement"),
-        description="When pension payouts begin.",
-    )
-    pensionPayoutsEnd: IncomeTimeRef = Field(
-        default_factory=lambda: IncomeTimeRef(type="keyword", value="endOfPlan"),
-        description="When pension payouts end.",
-    )
-    pensionPayoutType: Literal["fap", "cap", "fixed"] = Field(
-        default="fap",
-        description='"fap" = % of Final Average Pay, "cap" = % of Career Average Pay, "fixed" = fixed annual amount in Today\'s Currency.'
-    )
-    pensionPayoutRate: float = Field(default=25, description="Payout as % of average pay (used for fap/cap types).")
-    pensionPayoutAmount: float = Field(default=0, description="Fixed annual payout amount in Today's Currency (used for 'fixed' type).")
-    pensionPayoutsAreTaxFree: bool = Field(default=False, description="If True, pension payouts are treated as tax-free income.")
-
-
-class NewHourlyWage(BaseModel):
-    """Input model for creating a new HourlyWage income event.
-
-    Only the most important fields are required; the rest have sensible defaults.
-    """
-    name: Annotated[str, Field(description="Display name for this income event.")]
-    amount: Annotated[float, Field(description="Hourly rate (in today's dollars by default).")]
-    owner: Annotated[Literal["me", "spouse"], Field(description='Who earns this income: "me" or "spouse".')] = "me"
-    hoursPerWeek: Annotated[float, Field(description="Hours worked per week. Annual income = rate × hours × 52.")] = 40
-
-    start: Annotated[IncomeTimeRef, Field(
-        description='When this income begins. Default: already active ("beforeCurrentYear").'
-    )] = Field(default_factory=lambda: IncomeTimeRef(type="keyword", value="beforeCurrentYear"))
-
-    end: Annotated[IncomeTimeRef, Field(
-        description='When this income ends. Default: at retirement (exclusive — ends the year before).'
-    )] = Field(default_factory=lambda: IncomeTimeRef(type="milestone", value="retirement", modifier="exclude"))
-
-    yearlyChange: Annotated[IncomeYearlyChange, Field(
-        description="How the hourly rate changes over time. Default: match inflation."
-    )] = Field(default_factory=IncomeYearlyChange)
-
-    taxExempt: Annotated[bool, Field(description="If True, this income is fully exempt from income tax.")] = False
-    taxWithholding: Annotated[bool, Field(description="If True, withhold a portion each period for taxes.")] = True
-    withhold: Annotated[float, Field(description="% to withhold for taxes (if taxWithholding=True). Default 20 for hourly.")] = 20
-
-    selfEmployment: Annotated[bool, Field(description="Counts as self-employment income (subject to SE tax).")] = False
-    wage: Annotated[bool, Field(description="Counts as wage income. Mutually exclusive with selfEmployment.")] = False
-    isDividendIncome: Annotated[bool, Field(description="Treat as dividend income.")] = False
-    isPassiveIncome: Annotated[bool, Field(description="Counts as passive income.")] = False
-
-    goPartTime: Annotated[bool, Field(description="If True, income drops to partTimeRate% between partTimeStart and partTimeEnd.")] = False
-    partTimeStart: Annotated[IncomeTimeRef, Field(description="When the part-time period begins.")] = Field(default_factory=lambda: IncomeTimeRef(type="keyword", value="now"))
-    partTimeEnd: Annotated[IncomeTimeRef, Field(description="When the part-time period ends.")] = Field(default_factory=lambda: IncomeTimeRef(type="milestone", value="retirement"))
-    partTimeRate: Annotated[float, Field(description="Part-time income as % of full hourly wage.")] = 50
-
-    hasPension: Annotated[bool, Field(description="If True, a defined-benefit pension is attached to this income.")] = False
-    pensionContribution: Annotated[float, Field(description="Contribution amount or rate per year while working.")] = 0
-    pensionContributionType: Annotated[Literal["%", "$"], Field(description='Whether pensionContribution is a percentage ("%") or fixed dollar amount ("$").')] = "%"
-    contribsReduceTaxableIncome: Annotated[bool, Field(description="If True, contributions reduce taxable income.")] = True
-    pensionPayoutsStart: Annotated[IncomeTimeRef, Field(description="When pension payouts begin.")] = Field(default_factory=lambda: IncomeTimeRef(type="milestone", value="retirement"))
-    pensionPayoutsEnd: Annotated[IncomeTimeRef, Field(description="When pension payouts end.")] = Field(default_factory=lambda: IncomeTimeRef(type="keyword", value="endOfPlan"))
-    pensionPayoutType: Annotated[Literal["fap", "cap", "fixed"], Field(description='"fap" = % of Final Average Pay, "cap" = % of Career Average Pay, "fixed" = fixed annual amount.')] = "fap"
-    pensionPayoutRate: Annotated[float, Field(description="Payout as % of average pay (fap/cap types).")] = 25
-    pensionPayoutAmount: Annotated[float, Field(description="Fixed annual payout in Today's Currency ('fixed' type).")] = 0
-    pensionPayoutsAreTaxFree: Annotated[bool, Field(description="If True, pension payouts are tax-free.")] = False
+    amount: Annotated[float, Field(description="Hourly rate in today's dollars.")]
+    hoursPerWeek: float = 40
 
     def to_hourly_wage(self) -> HourlyWage:
-        """Convert to a full HourlyWage object with all required fields filled in."""
-        data = self.model_dump(exclude_none=True)
-        data.setdefault("title", data["name"])
-        return HourlyWage.model_validate(data)
+        self.extra.setdefault("hoursPerWeek", self.hoursPerWeek)
+        return self.to_income()  # type: ignore[return-value]
 
 
-class RsuGrant(BaseModel):
-    """An RSU (Restricted Stock Unit) grant income event as stored in plan.income.events.
-
-    RSU grants are lump-sum or periodic income events representing stock vesting.
-    Key differences from Salary/HourlyWage:
-      - type = "rsu"
-      - icon = "mdi-finance"
-      - title defaults to "RSU Grant" (not the display name)
-      - withhold default = 30 (vs 20/25 for salary/hourly)
-      - yearlyChange defaults to type="none" (not "match-inflation")
-      - start.modifier = "include" for keyword refs
-      - frequency includes "once" option (one-time grant)
-      - No hoursPerWeek, goPartTime, hasPension fields
-      - Recurrence via repeat/repeatInterval/repeatScaler/repeatEnd
-    """
-    model_config = {"extra": "allow"}
-
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    planPath: Literal["income"] = "income"
+class NewRsuGrant(NewIncome):
     type: Literal["rsu"] = "rsu"
 
-    # Display
-    name: str = Field(description="Internal name shown in the plan income list.")
-    title: str = Field(default="RSU Grant", description='Display title. Defaults to "RSU Grant" (not the name).')
-    icon: str = Field(default="mdi-finance", description="Material Design icon name.")
-    owner: Literal["me", "spouse"] = Field(default="me", description='Who receives this grant: "me" or "spouse".')
-
-    # Amount
-    amount: float = Field(description="Vested amount (lump sum or per-period).")
-    amountType: Literal["today$", "actual$"] = Field(default="today$", description='"today$" = Today\'s Currency (inflation-adjusted); "actual$" = nominal future dollars.')
-
-    # Frequency
-    frequency: Literal["once", "yearly", "once-per-year", "quarterly", "monthly", "bi-weekly", "weekly", "daily"] = Field(
-        default="once",
-        description='"once" = single one-time grant. Other values repeat over a time range.',
-    )
-    frequencyChoices: bool = Field(default=True, description="Always True for RSU grants — frequency is user-configurable.")
-
-    # Time range
-    start: IncomeTimeRef = Field(
-        default_factory=lambda: IncomeTimeRef(type="keyword", value="now", modifier="include"),
-        description="When this grant vests / begins. Defaults to now (inclusive).",
-    )
-    end: IncomeTimeRef = Field(
-        default_factory=lambda: IncomeTimeRef(type="milestone", value="retirement", modifier="exclude"),
-        description="When this grant ends (for recurring frequencies).",
-    )
-
-    # Change over time
-    yearlyChange: IncomeYearlyChange = Field(
-        default_factory=lambda: IncomeYearlyChange(type="none"),
-        description='How the amount changes year-over-year. Defaults to "none" (flat in nominal terms).',
-    )
-
-    # Tax handling
-    taxExempt: bool = Field(default=False, description="If True, this income is fully exempt from income tax.")
-    taxWithholding: bool = Field(default=True, description="If True, a portion is withheld and returned as refund if over-withheld.")
-    withhold: float = Field(default=30, description="% of grant to withhold for taxes (only when taxWithholding=True). Default 30 for RSU.")
-
-    # Advanced tax flags (absent by default; present only when user enables them)
-    selfEmployment: Optional[bool] = Field(default=None, description="Counts as self-employment income (subject to SE tax).")
-    wage: Optional[bool] = Field(default=None, description="Counts as wage income. Mutually exclusive with selfEmployment.")
-    isDividendIncome: Optional[bool] = Field(default=None, description="Treat as dividend income.")
-    isPassiveIncome: Optional[bool] = Field(default=None, description="Counts as passive income.")
-
-    # Send To
-    preventOverflow: Optional[bool] = Field(default=None, description="If True, income routes to a specific account instead of normal cash flow.")
-    routeToAccounts: Optional[str] = Field(default=None, description="Account ID to route grant proceeds to. Null = automatic cash flow.")
-
-    # Recurrence (when repeat=True)
-    repeat: bool = Field(default=False, description="Enable recurrence — grant repeats on a schedule.")
-    repeatIntervalType: Optional[Literal["between"]] = Field(default=None, description='Always "between" when repeat=True.')
-    repeatInterval: Optional[int] = Field(default=None, description="Number of years between each repeated grant.")
-    repeatScaler: Optional[float] = Field(default=None, description="% to scale the amount up (positive) or down (negative) each repetition.")
-    repeatEnd: Optional[IncomeTimeRef] = Field(default=None, description="When the recurrence stops. Defaults to End of Plan.")
-
-
-class NewRsuGrant(BaseModel):
-    """Input model for creating a new RSU Grant income event.
-
-    Only name and amount are required; all other fields have sensible defaults
-    matching what the ProjectionLab UI creates.
-    """
-    name: Annotated[str, Field(description="Display name for this grant.")]
-    amount: Annotated[float, Field(description="Vested amount (in today's dollars by default).")]
-    owner: Annotated[Literal["me", "spouse"], Field(description='Who receives this grant: "me" or "spouse".')] = "me"
-
-    frequency: Annotated[
-        Literal["once", "yearly", "once-per-year", "quarterly", "monthly", "bi-weekly", "weekly", "daily"],
-        Field(description='"once" = one-time grant (default). Other values repeat over the start→end range.'),
-    ] = "once"
-
-    start: Annotated[IncomeTimeRef, Field(
-        description="When the grant vests / income begins. Default: now (inclusive)."
-    )] = Field(default_factory=lambda: IncomeTimeRef(type="keyword", value="now", modifier="include"))
-
-    end: Annotated[IncomeTimeRef, Field(
-        description="When the grant ends (for recurring frequencies). Default: retirement (exclusive)."
-    )] = Field(default_factory=lambda: IncomeTimeRef(type="milestone", value="retirement", modifier="exclude"))
-
-    amountType: Annotated[Literal["today$", "actual$"], Field(
-        description='"today$" = entered in Today\'s Currency; "actual$" = nominal future dollars.'
-    )] = "today$"
-
-    yearlyChange: Annotated[IncomeYearlyChange, Field(
-        description='How the amount changes over time. Default: none (flat in nominal terms).'
-    )] = Field(default_factory=lambda: IncomeYearlyChange(type="none"))
-
-    taxExempt: Annotated[bool, Field(description="If True, fully exempt from income tax.")] = False
-    taxWithholding: Annotated[bool, Field(description="If True, withhold a portion for taxes.")] = True
-    withhold: Annotated[float, Field(description="% to withhold for taxes (if taxWithholding=True). Default 30 for RSU.")] = 30
-
-    selfEmployment: Annotated[Optional[bool], Field(description="Counts as self-employment income.")] = None
-    wage: Annotated[Optional[bool], Field(description="Counts as wage income.")] = None
-    isDividendIncome: Annotated[Optional[bool], Field(description="Treat as dividend income.")] = None
-    isPassiveIncome: Annotated[Optional[bool], Field(description="Counts as passive income.")] = None
-
-    repeat: Annotated[bool, Field(description="Enable recurrence.")] = False
-    repeatInterval: Annotated[Optional[int], Field(description="Years between each repeated grant (when repeat=True).")] = None
-    repeatScaler: Annotated[Optional[float], Field(description="% to scale amount each repetition (when repeat=True).")] = None
-    repeatEnd: Annotated[Optional[IncomeTimeRef], Field(description="When recurrence stops (when repeat=True). Default: End of Plan.")] = None
-
     def to_rsu_grant(self) -> RsuGrant:
-        """Convert to a full RsuGrant object with all required fields filled in."""
-        data = self.model_dump(exclude_none=True)
-        data.setdefault("title", "RSU Grant")
-        if data.get("repeat") and data.get("repeatInterval") is not None:
-            data["repeatIntervalType"] = "between"
-        if data.get("repeat") and "repeatEnd" not in data:
-            data["repeatEnd"] = IncomeTimeRef(type="keyword", value="endOfPlan", modifier="include").model_dump()
-        return RsuGrant.model_validate(data)
+        return self.to_income()  # type: ignore[return-value]
 
 
-class NewSalary(BaseModel):
-    """Input model for creating a new Salary income event.
-
-    Only the most important fields are required; the rest have sensible defaults.
-    Use Salary.model_validate(new_salary.model_dump(exclude_none=True)) to build
-    the full object, or pass directly to income CRUD helpers.
-    """
-    name: Annotated[str, Field(description="Display name for this income event.")]
-    amount: Annotated[float, Field(description="Annual income amount (in today's dollars by default).")]
-    owner: Annotated[Literal["me", "spouse"], Field(description='Who earns this income: "me" or "spouse".')] = "me"
-
-    start: Annotated[IncomeTimeRef, Field(
-        description='When this income begins. Default: already active ("beforeCurrentYear").'
-    )] = Field(default_factory=lambda: IncomeTimeRef(type="keyword", value="beforeCurrentYear"))
-
-    end: Annotated[IncomeTimeRef, Field(
-        description='When this income ends. Default: at retirement milestone.'
-    )] = Field(default_factory=lambda: IncomeTimeRef(type="milestone", value="retirement"))
-
-    yearlyChange: Annotated[IncomeYearlyChange, Field(
-        description="How income changes over time. Default: match inflation."
-    )] = Field(default_factory=IncomeYearlyChange)
-
-    taxExempt: Annotated[bool, Field(description="If True, this income is fully exempt from income tax.")] = False
-    taxWithholding: Annotated[bool, Field(description="If True, withhold a portion each period for taxes.")] = True
-    withhold: Annotated[float, Field(description="% to withhold for taxes (if taxWithholding=True). Default 25 for salary.")] = 25
-
-    selfEmployment: Annotated[bool, Field(description="Counts as self-employment income (subject to SE tax).")] = False
-    wage: Annotated[bool, Field(description="Counts as wage income. Mutually exclusive with selfEmployment.")] = False
-    isDividendIncome: Annotated[bool, Field(description="Treat as dividend income.")] = False
-    isPassiveIncome: Annotated[bool, Field(description="Counts as passive income.")] = False
-
-    goPartTime: Annotated[bool, Field(description="If True, income drops to partTimeRate% between partTimeStart and partTimeEnd.")] = False
-    partTimeStart: Annotated[IncomeTimeRef, Field(description="When the part-time period begins.")] = Field(default_factory=lambda: IncomeTimeRef(type="keyword", value="now"))
-    partTimeEnd: Annotated[IncomeTimeRef, Field(description="When the part-time period ends.")] = Field(default_factory=lambda: IncomeTimeRef(type="milestone", value="retirement"))
-    partTimeRate: Annotated[float, Field(description="Part-time income as % of full salary.")] = 50
-
-    hasPension: Annotated[bool, Field(description="If True, a defined-benefit pension is attached to this income.")] = False
-    pensionContribution: Annotated[float, Field(description="Contribution amount or rate per year while working.")] = 0
-    pensionContributionType: Annotated[Literal["%", "$"], Field(description='Whether pensionContribution is a percentage ("%") or fixed dollar amount ("$").')] = "%"
-    contribsReduceTaxableIncome: Annotated[bool, Field(description="If True, contributions reduce taxable income.")] = True
-    pensionPayoutsStart: Annotated[IncomeTimeRef, Field(description="When pension payouts begin.")] = Field(default_factory=lambda: IncomeTimeRef(type="milestone", value="retirement"))
-    pensionPayoutsEnd: Annotated[IncomeTimeRef, Field(description="When pension payouts end.")] = Field(default_factory=lambda: IncomeTimeRef(type="keyword", value="endOfPlan"))
-    pensionPayoutType: Annotated[Literal["fap", "cap", "fixed"], Field(description='"fap" = % of Final Average Pay, "cap" = % of Career Average Pay, "fixed" = fixed annual amount.')] = "fap"
-    pensionPayoutRate: Annotated[float, Field(description="Payout as % of average pay (fap/cap types).")] = 25
-    pensionPayoutAmount: Annotated[float, Field(description="Fixed annual payout in Today's Currency ('fixed' type).")] = 0
-    pensionPayoutsAreTaxFree: Annotated[bool, Field(description="If True, pension payouts are tax-free.")] = False
-
-    def to_salary(self) -> Salary:
-        """Convert to a full Salary object with all required fields filled in."""
-        data = self.model_dump(exclude_none=True)
-        data.setdefault("title", data["name"])
-        return Salary.model_validate(data)
-
-
-class CustomIncome(BaseModel):
-    """A custom income event as stored in plan.income.events.
-
-    The ProjectionLab UI calls this "Custom Income" but the stored type is "other".
-
-    Key differences from Salary/HourlyWage/RsuGrant:
-      - type = "other" (not "custom" — important!)
-      - icon = "mdi-currency-usd-circle"
-      - taxWithholding = False by default (all other income types default to True)
-      - withhold default = 20 (same as hourly; vs 25 salary, 30 RSU)
-      - No hoursPerWeek, goPartTime, hasPension / pension* fields
-      - No repeatIntervalType/repeatInterval/repeatScaler/repeatEnd (but repeat flag is present)
-      - end default has no modifier (unlike hourly which uses modifier="exclude")
-      - selfEmployment/wage/isDividendIncome/isPassiveIncome are plain bool (not Optional)
-        because the app always stores them explicitly
-    """
-    model_config = {"extra": "allow"}
-
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    planPath: Literal["income"] = "income"
+class NewCustomIncome(NewIncome):
     type: Literal["other"] = "other"
 
-    # Display
-    name: str = Field(description="Internal name shown in the plan income list.")
-    title: str = Field(default="Custom Income", description='Display title. Defaults to "Custom Income".')
-    icon: str = Field(default="mdi-currency-usd-circle", description="Material Design icon name.")
-    owner: Literal["me", "spouse"] = Field(default="me", description='Who earns this income: "me" or "spouse".')
-
-    # Amount
-    amount: float = Field(description="Income amount per period.")
-    amountType: Literal["today$", "actual$"] = Field(
-        default="today$",
-        description='"today$" = Today\'s Currency (inflation-adjusted); "actual$" = nominal future dollars.',
-    )
-
-    # Frequency
-    frequency: Literal["once", "yearly", "quarterly", "monthly", "bi-weekly", "weekly", "daily"] = Field(
-        default="yearly",
-        description="How often the income is received. Defaults to yearly.",
-    )
-    frequencyChoices: bool = Field(default=True, description="Always True for custom income — frequency is user-configurable.")
-
-    # Time range
-    start: IncomeTimeRef = Field(
-        default_factory=lambda: IncomeTimeRef(type="keyword", value="beforeCurrentYear"),
-        description="When this income begins. Defaults to already active (before current year).",
-    )
-    end: IncomeTimeRef = Field(
-        default_factory=lambda: IncomeTimeRef(type="milestone", value="retirement"),
-        description="When this income ends. Defaults to retirement (no modifier — inclusive boundary).",
-    )
-
-    # Change over time
-    yearlyChange: IncomeYearlyChange = Field(
-        default_factory=IncomeYearlyChange,
-        description='How the amount changes year-over-year. Defaults to "match-inflation".',
-    )
-
-    # Tax handling — NOTE: taxWithholding defaults to False (unlike all other income types)
-    taxExempt: bool = Field(default=False, description="If True, this income is fully exempt from income tax.")
-    taxWithholding: bool = Field(
-        default=False,
-        description="If True, withhold a portion each period and return as refund if over-withheld. "
-                    "Defaults to False for custom income (unlike salary/hourly/RSU which default to True).",
-    )
-    withhold: float = Field(default=20, description="% to withhold for taxes (only when taxWithholding=True). Default 20.")
-
-    # Advanced tax flags — always stored explicitly (not Optional like RSU)
-    selfEmployment: bool = Field(default=False, description="Counts as self-employment income (subject to SE tax).")
-    wage: bool = Field(default=False, description="Counts as wage income. Mutually exclusive with selfEmployment.")
-    isDividendIncome: bool = Field(default=False, description="Treat as dividend income.")
-    isPassiveIncome: bool = Field(default=False, description="Counts as passive income.")
-
-    # Send To
-    routeToAccounts: Optional[str] = Field(default=None, description="Account ID to route income to. Null = automatic cash flow.")
-    preventOverflow: bool = Field(default=False, description="If True, income routes to a specific account instead of normal cash flow.")
-
-    # Recurrence
-    repeat: bool = Field(default=False, description="Enable recurrence — income repeats on a schedule.")
-    repeatIntervalType: Optional[Literal["between"]] = Field(default=None, description='Always "between" when repeat=True.')
-    repeatInterval: Optional[int] = Field(default=None, description="Number of years between each repeated event.")
-    repeatScaler: Optional[float] = Field(default=None, description="% to scale the amount each repetition.")
-    repeatEnd: Optional[IncomeTimeRef] = Field(default=None, description="When recurrence stops.")
-
-
-class NewCustomIncome(BaseModel):
-    """Input model for creating a new Custom Income event.
-
-    Only name and amount are required; all other fields have sensible defaults
-    matching what the ProjectionLab UI creates for a new "Custom Income".
-
-    Note: the stored type is "other" (not "custom") — this is how ProjectionLab
-    identifies custom income internally.
-    """
-    name: Annotated[str, Field(description="Display name for this income event.")]
-    amount: Annotated[float, Field(description="Income amount per period (in today's dollars by default).")]
-    owner: Annotated[Literal["me", "spouse"], Field(description='Who earns this income: "me" or "spouse".')] = "me"
-
-    frequency: Annotated[
-        Literal["once", "yearly", "quarterly", "monthly", "bi-weekly", "weekly", "daily"],
-        Field(description="How often the income is received. Defaults to yearly."),
-    ] = "yearly"
-
-    start: Annotated[IncomeTimeRef, Field(
-        description='When this income begins. Default: already active ("beforeCurrentYear").'
-    )] = Field(default_factory=lambda: IncomeTimeRef(type="keyword", value="beforeCurrentYear"))
-
-    end: Annotated[IncomeTimeRef, Field(
-        description="When this income ends. Default: at retirement (no modifier — inclusive)."
-    )] = Field(default_factory=lambda: IncomeTimeRef(type="milestone", value="retirement"))
-
-    amountType: Annotated[Literal["today$", "actual$"], Field(
-        description='"today$" = entered in Today\'s Currency; "actual$" = nominal future dollars.'
-    )] = "today$"
-
-    yearlyChange: Annotated[IncomeYearlyChange, Field(
-        description="How the amount changes over time. Default: match inflation."
-    )] = Field(default_factory=IncomeYearlyChange)
-
-    taxExempt: Annotated[bool, Field(description="If True, fully exempt from income tax.")] = False
-    taxWithholding: Annotated[bool, Field(
-        description="If True, withhold a portion for taxes. Defaults to False for custom income."
-    )] = False
-    withhold: Annotated[float, Field(description="% to withhold for taxes (if taxWithholding=True). Default 20.")] = 20
-
-    selfEmployment: Annotated[bool, Field(description="Counts as self-employment income (subject to SE tax).")] = False
-    wage: Annotated[bool, Field(description="Counts as wage income. Mutually exclusive with selfEmployment.")] = False
-    isDividendIncome: Annotated[bool, Field(description="Treat as dividend income.")] = False
-    isPassiveIncome: Annotated[bool, Field(description="Counts as passive income.")] = False
-
-    repeat: Annotated[bool, Field(description="Enable recurrence.")] = False
-    repeatInterval: Annotated[Optional[int], Field(description="Years between each repeated event (when repeat=True).")] = None
-    repeatScaler: Annotated[Optional[float], Field(description="% to scale amount each repetition (when repeat=True).")] = None
-    repeatEnd: Annotated[Optional[IncomeTimeRef], Field(description="When recurrence stops (when repeat=True).")] = None
-
     def to_custom_income(self) -> CustomIncome:
-        """Convert to a full CustomIncome object with all required fields filled in."""
-        data = self.model_dump(exclude_none=True)
-        data.setdefault("title", "Custom Income")
-        if data.get("repeat") and data.get("repeatInterval") is not None:
-            data["repeatIntervalType"] = "between"
-        if data.get("repeat") and "repeatEnd" not in data:
-            data["repeatEnd"] = IncomeTimeRef(type="keyword", value="endOfPlan", modifier="include").model_dump()
-        return CustomIncome.model_validate(data)
+        return self.to_income()  # type: ignore[return-value]

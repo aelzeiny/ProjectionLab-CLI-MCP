@@ -1,0 +1,35 @@
+{
+  "amount": 100,
+  "amountType": "today$",
+  "end": {
+    "modifier": "include",
+    "type": "milestone",
+    "value": "retirement"
+  },
+  "frequency": "once",
+  "frequencyChoices": true,
+  "icon": "mdi-finance",
+  "id": "036977a1-ccad-4c93-a7eb-bf0ed51be559",
+  "name": "RSU Grant",
+  "owner": "me",
+  "planPath": "income",
+  "repeat": false,
+  "start": {
+    "modifier": "include",
+    "type": "keyword",
+    "value": "now"
+  },
+  "taxCharacter": "auto",
+  "taxExempt": false,
+  "title": "RSU Grant",
+  "type": "rsu",
+  "withholdingMode": "auto",
+  "yearlyChange": {
+    "amount": 0,
+    "amountType": "today$",
+    "limit": 0,
+    "limitEnabled": false,
+    "limitType": "today$",
+    "type": "none"
+  }
+}

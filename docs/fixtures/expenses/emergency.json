@@ -1,0 +1,34 @@
+{
+  "amount": 100,
+  "amountType": "today$",
+  "color": "red-lighten-1",
+  "end": {
+    "modifier": "include",
+    "type": "keyword",
+    "value": "endOfPlan"
+  },
+  "frequency": "once",
+  "frequencyChoices": true,
+  "icon": "mdi-weather-lightning",
+  "id": "f98185e4-6621-484e-a553-9677791ad000",
+  "name": "Emergency",
+  "owner": "me",
+  "planPath": "expenses",
+  "repeat": false,
+  "spendingType": "essential",
+  "start": {
+    "modifier": "include",
+    "type": "keyword",
+    "value": "now"
+  },
+  "title": "Emergency",
+  "type": "emergency",
+  "yearlyChange": {
+    "amount": 0,
+    "amountType": "today$",
+    "limit": 0,
+    "limitEnabled": false,
+    "limitType": "today$",
+    "type": "none"
+  }
+}

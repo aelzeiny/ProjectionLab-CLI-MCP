@@ -1,0 +1,63 @@
+{
+  "amount": 100,
+  "amountType": "today$",
+  "contribsReduceTaxableIncome": true,
+  "end": {
+    "modifier": "include",
+    "type": "milestone",
+    "value": "retirement"
+  },
+  "frequency": "yearly",
+  "frequencyChoices": true,
+  "goPartTime": false,
+  "hasPension": false,
+  "icon": "mdi-office-building",
+  "id": "379a6caa-f53c-4a64-bbc4-4dccec322174",
+  "name": "Salary",
+  "owner": "me",
+  "partTimeEnd": {
+    "modifier": "include",
+    "type": "milestone",
+    "value": "retirement"
+  },
+  "partTimeRate": 50,
+  "partTimeStart": {
+    "modifier": "include",
+    "type": "keyword",
+    "value": "now"
+  },
+  "pensionContribution": 0,
+  "pensionContributionType": "%",
+  "pensionPayoutAmount": 0,
+  "pensionPayoutRate": 25,
+  "pensionPayoutType": "fap",
+  "pensionPayoutsAreTaxFree": false,
+  "pensionPayoutsEnd": {
+    "modifier": "include",
+    "type": "keyword",
+    "value": "endOfPlan"
+  },
+  "pensionPayoutsStart": {
+    "modifier": "include",
+    "type": "milestone",
+    "value": "retirement"
+  },
+  "planPath": "income",
+  "start": {
+    "type": "keyword",
+    "value": "beforeCurrentYear"
+  },
+  "taxCharacter": "auto",
+  "taxExempt": false,
+  "title": "Salary",
+  "type": "salary",
+  "withholdingMode": "auto",
+  "yearlyChange": {
+    "amount": 0,
+    "amountType": "today$",
+    "limit": 0,
+    "limitEnabled": false,
+    "limitType": "today$",
+    "type": "match-inflation"
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "amount": 100,
+  "amountType": "today$",
+  "end": {
+    "modifier": "include",
+    "type": "milestone",
+    "value": "retirement"
+  },
+  "frequency": "yearly",
+  "frequencyChoices": true,
+  "icon": "mdi-piggy-bank",
+  "id": "268a9373-4a2d-4714-9612-06da1ee2525e",
+  "name": "Side Hustle",
+  "owner": "me",
+  "planPath": "income",
+  "repeat": false,
+  "start": {
+    "type": "keyword",
+    "value": "beforeCurrentYear"
+  },
+  "taxCharacter": "selfEmployment",
+  "taxExempt": false,
+  "title": "Side Hustle",
+  "type": "side-hustle",
+  "withholdingMode": "auto",
+  "yearlyChange": {
+    "amount": 0,
+    "amountType": "today$",
+    "limit": 0,
+    "limitEnabled": false,
+    "limitType": "today$",
+    "type": "none"
+  }
+}

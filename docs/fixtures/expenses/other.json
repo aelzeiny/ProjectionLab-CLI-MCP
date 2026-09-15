@@ -1,0 +1,36 @@
+{
+  "amount": 100,
+  "amountType": "today$",
+  "color": "brown-lighten-1",
+  "deductFromIncomeId": "",
+  "end": {
+    "modifier": "include",
+    "type": "keyword",
+    "value": "endOfPlan"
+  },
+  "frequency": "yearly",
+  "frequencyChoices": true,
+  "icon": "mdi-currency-usd-circle",
+  "id": "b0e9af8d-3cc6-4e5b-8a6f-3a27d8cd4726",
+  "itemized": false,
+  "name": "Custom Expense",
+  "owner": "me",
+  "planPath": "expenses",
+  "repeat": false,
+  "spendingType": "essential",
+  "start": {
+    "type": "keyword",
+    "value": "beforeCurrentYear"
+  },
+  "taxDeductible": false,
+  "title": "Custom Expense",
+  "type": "other",
+  "yearlyChange": {
+    "amount": 0,
+    "amountType": "today$",
+    "limit": 0,
+    "limitEnabled": false,
+    "limitType": "today$",
+    "type": "match-inflation"
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "amount": 100,
+  "amountType": "today$",
+  "color": "teal-lighten-1",
+  "end": {
+    "modifier": "include",
+    "type": "keyword",
+    "value": "endOfPlan"
+  },
+  "frequency": "monthly",
+  "frequencyChoices": true,
+  "icon": "mdi-home-currency-usd",
+  "id": "5c25c8a8-407f-42b9-8145-73ea57bd3a29",
+  "name": "Rent",
+  "owner": "me",
+  "planPath": "expenses",
+  "spendingType": "essential",
+  "start": {
+    "type": "keyword",
+    "value": "beforeCurrentYear"
+  },
+  "title": "Rent",
+  "type": "rent",
+  "yearlyChange": {
+    "amount": 0,
+    "amountType": "today$",
+    "limit": 0,
+    "limitEnabled": false,
+    "limitType": "today$",
+    "type": "match-inflation"
+  }
+}

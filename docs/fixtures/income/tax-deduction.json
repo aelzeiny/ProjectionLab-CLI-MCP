@@ -1,0 +1,37 @@
+{
+  "amount": 100,
+  "amountType": "today$",
+  "end": {
+    "modifier": "include",
+    "type": "milestone",
+    "value": "retirement"
+  },
+  "frequency": "once",
+  "frequencyChoices": true,
+  "icon": "mdi-file-document-outline",
+  "id": "b1d02390-4c95-478e-a853-03c5ca4a9074",
+  "itemized": false,
+  "jurisdictions": [
+    "federal"
+  ],
+  "name": "Tax Deduction",
+  "owner": "me",
+  "planPath": "income",
+  "repeat": false,
+  "start": {
+    "modifier": "include",
+    "type": "keyword",
+    "value": "now"
+  },
+  "taxType": "income",
+  "title": "Tax Deduction",
+  "type": "tax-deduction",
+  "yearlyChange": {
+    "amount": 0,
+    "amountType": "today$",
+    "limit": 0,
+    "limitEnabled": false,
+    "limitType": "today$",
+    "type": "none"
+  }
+}

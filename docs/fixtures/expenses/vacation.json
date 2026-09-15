@@ -1,0 +1,33 @@
+{
+  "amount": 100,
+  "amountType": "today$",
+  "color": "cyan-lighten-1",
+  "end": {
+    "modifier": "include",
+    "type": "keyword",
+    "value": "endOfPlan"
+  },
+  "frequency": "yearly",
+  "frequencyChoices": true,
+  "icon": "mdi-beach",
+  "id": "a2b79750-84ac-4d1b-be5b-59b164758473",
+  "name": "Vacation",
+  "owner": "me",
+  "planPath": "expenses",
+  "repeat": false,
+  "spendingType": "discretionary",
+  "start": {
+    "type": "keyword",
+    "value": "beforeCurrentYear"
+  },
+  "title": "Vacation",
+  "type": "vacation",
+  "yearlyChange": {
+    "amount": 0,
+    "amountType": "today$",
+    "limit": 0,
+    "limitEnabled": false,
+    "limitType": "today$",
+    "type": "match-inflation"
+  }
+}

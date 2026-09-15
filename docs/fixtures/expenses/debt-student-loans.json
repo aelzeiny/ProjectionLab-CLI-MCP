@@ -1,0 +1,48 @@
+{
+  "amount": 0,
+  "amountType": "today$",
+  "color": "lime-lighten-1",
+  "compounding": "daily",
+  "effectiveDate": {
+    "modifier": "include",
+    "type": "keyword",
+    "value": "now"
+  },
+  "end": {
+    "type": "keyword",
+    "value": "never"
+  },
+  "forgiveAt": {
+    "modifier": "include",
+    "type": "keyword",
+    "value": "now"
+  },
+  "frequency": "monthly",
+  "frequencyChoices": true,
+  "hasForgiveness": false,
+  "icon": "mdi-school",
+  "id": "6bb1ccf4-a27d-4bfb-a9bb-8dc5994071e9",
+  "interestRate": 0,
+  "interestType": "compound",
+  "monthlyPayment": 0,
+  "monthlyPaymentType": "today$",
+  "name": "Student Loans",
+  "owner": "me",
+  "planPath": "expenses",
+  "start": {
+    "modifier": "include",
+    "type": "keyword",
+    "value": "now"
+  },
+  "subtype": "student-loans",
+  "title": "Student Loans",
+  "type": "debt",
+  "yearlyChange": {
+    "amount": 0,
+    "amountType": "today$",
+    "limit": 0,
+    "limitEnabled": false,
+    "limitType": "today$",
+    "type": "none"
+  }
+}

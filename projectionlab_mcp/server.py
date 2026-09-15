@@ -1,8 +1,8 @@
-from typing import Annotated, Any
+from typing import Annotated, Literal, Any
 from pydantic import Field
 from mcp.server.fastmcp import FastMCP
 from . import plugin_api
-import models
+from . import models
 
 mcp = FastMCP("projectionlab-mcp")
 
@@ -288,6 +288,18 @@ async def get_income_event(
 
 
 @mcp.tool()
+async def create_income(
+    plan_id: Annotated[str, Field(description="The ID of the plan to add the income to.")],
+    params: models.NewIncome,
+) -> str:
+    """Create an income event of any type the ProjectionLab UI offers (salary, hourly, rsu, side-hustle,
+    other, inheritance, tax-credit, tax-deduction, pension, social-security). Fields you omit take the
+    exact defaults the UI's "New Income" dialog would use for that type."""
+    income = await plugin_api.create_income(plan_id, params)
+    return f"{income.title} income '{income.id}' created.\n" + income.model_dump_json(indent=2, exclude_none=True)
+
+
+@mcp.tool()
 async def create_salary(
     plan_id: Annotated[str, Field(description="The ID of the plan to add the salary to.")],
     params: models.NewSalary,
@@ -335,6 +347,59 @@ async def delete_income_event(
     """Delete an income event from a plan."""
     await plugin_api.delete_income_event(plan_id, income_id)
     return f"Income event '{income_id}' deleted."
+
+
+@mcp.tool()
+async def list_expense_events(
+    plan_id: Annotated[str, Field(description="The ID of the plan whose expense events to list.")]
+) -> str:
+    """List all expense events for a plan (living expenses, education, health care, custom, etc.)."""
+    import json
+    events = await plugin_api.list_expense_events(plan_id)
+    return json.dumps(events, indent=2)
+
+
+@mcp.tool()
+async def get_expense_event(
+    plan_id: Annotated[str, Field(description="The ID of the plan.")],
+    expense_id: Annotated[str, Field(description="The ID of the expense event to retrieve.")],
+) -> str:
+    """Get a single expense event by ID from a plan."""
+    import json
+    event = await plugin_api.get_expense_event(plan_id, expense_id)
+    return json.dumps(event, indent=2)
+
+
+@mcp.tool()
+async def create_custom_expense(
+    plan_id: Annotated[str, Field(description="The ID of the plan to add the expense to.")],
+    params: models.NewCustomExpense,
+) -> str:
+    """Create a new custom expense event (stored type "other") in a plan."""
+    expense = await plugin_api.create_custom_expense(plan_id, params)
+    return f"Custom expense '{expense.id}' created.\n" + expense.model_dump_json(indent=2, exclude_none=True, by_alias=True)
+
+
+@mcp.tool()
+async def create_expense(
+    plan_id: Annotated[str, Field(description="The ID of the plan to add the expense to.")],
+    params: models.NewExpense,
+) -> str:
+    """Create an expense of any type the ProjectionLab UI offers (living-expenses, rent, education,
+    health-care, medical, vacation, travel, wedding, charity, emergency, debt, other, ...). Fields you
+    omit take the exact defaults the UI's "New Expense" dialog would use for that type."""
+    expense = await plugin_api.create_expense(plan_id, params)
+    return f"{expense.title} expense '{expense.id}' created.\n" + expense.model_dump_json(indent=2, exclude_none=True, by_alias=True)
+
+
+@mcp.tool()
+async def delete_expense_event(
+    plan_id: Annotated[str, Field(description="The ID of the plan.")],
+    expense_id: Annotated[str, Field(description="The ID of the expense event to delete.")],
+) -> str:
+    """Delete an expense event from a plan. Generated Medicare expenses cannot be deleted."""
+    await plugin_api.delete_expense_event(plan_id, expense_id)
+    return f"Expense event '{expense_id}' deleted."
 
 
 @mcp.tool()
@@ -394,6 +459,37 @@ async def delete_milestone(
     """Delete a milestone from a plan."""
     await plugin_api.delete_milestone(plan_id, milestone_id)
     return f"Milestone '{milestone_id}' deleted."
+
+
+# --- Reports (per plan) ---
+
+@mcp.tool()
+async def list_reports() -> str:
+    """List the reports available on a plan's Reports tab (3 tables + ~41 plots). Each entry has a
+    stable `key` to pass to download_report, its `kind` (table/plot) and the name shown in the UI."""
+    import json
+    return json.dumps(plugin_api.list_reports(), indent=2)
+
+
+@mcp.tool()
+async def download_report(
+    plan_id: Annotated[str, Field(description="The ID of the plan whose Reports tab to export from.")],
+    report: Annotated[str, Field(description='Report key from list_reports (e.g. "summaryTable", "netWorth", "expensesByCategory") or its UI name when unique (e.g. "Net Worth").')],
+    format: Annotated[Literal["csv", "json", "pdf"], Field(description="Export format. csv/json are returned inline (and saved if output_path is given); pdf is binary and requires output_path.")] = "csv",
+    output_path: Annotated[str | None, Field(description="Optional local file path to save the export to.")] = None,
+) -> str:
+    """Download a report (a table or plot) from the plan's Reports tab, exactly as the UI's
+    Export → CSV/JSON/PDF menu would. Drives the shared browser, so it takes a few seconds."""
+    if format == "pdf" and not output_path:
+        raise ValueError("output_path is required for pdf exports.")
+    rep = await plugin_api.download_report(plan_id, report, format)
+    header = f"{rep.name} ({rep.kind}, key={rep.key}) for plan {plan_id} — {rep.filename}, {len(rep.content)} bytes"
+    if output_path:
+        rep.save(output_path)
+        header += f"\nSaved to {output_path}"
+        if format == "pdf":
+            return header
+    return header + "\n\n" + rep.text
 
 
 def main():

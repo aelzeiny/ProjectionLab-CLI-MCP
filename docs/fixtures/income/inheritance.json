@@ -1,0 +1,34 @@
+{
+  "amount": 100,
+  "amountType": "today$",
+  "end": {
+    "modifier": "include",
+    "type": "milestone",
+    "value": "retirement"
+  },
+  "frequency": "once",
+  "frequencyChoices": true,
+  "icon": "mdi-gift",
+  "id": "bb89eb54-3400-4413-94e5-5bf4fc46e0bc",
+  "name": "Inheritance",
+  "owner": "me",
+  "planPath": "income",
+  "repeat": false,
+  "start": {
+    "modifier": "include",
+    "type": "keyword",
+    "value": "now"
+  },
+  "taxCharacter": "auto",
+  "taxExempt": false,
+  "title": "Inheritance",
+  "type": "inheritance",
+  "yearlyChange": {
+    "amount": 0,
+    "amountType": "today$",
+    "limit": 0,
+    "limitEnabled": false,
+    "limitType": "today$",
+    "type": "none"
+  }
+}

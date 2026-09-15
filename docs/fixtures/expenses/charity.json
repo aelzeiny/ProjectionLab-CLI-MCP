@@ -1,0 +1,40 @@
+{
+  "amount": 100,
+  "amountType": "today$",
+  "color": "blue-lighten-1",
+  "donationType": "standard",
+  "end": {
+    "modifier": "include",
+    "type": "keyword",
+    "value": "endOfPlan"
+  },
+  "frequency": "once",
+  "frequencyChoices": true,
+  "icon": "mdi-charity",
+  "id": "004f5d67-0ff9-4444-ba08-f05057621532",
+  "itemized": true,
+  "name": "Charity",
+  "owner": "me",
+  "planPath": "expenses",
+  "repeat": false,
+  "spendingType": "discretionary",
+  "start": {
+    "modifier": "include",
+    "type": "keyword",
+    "value": "now"
+  },
+  "taxDeductible": [
+    "federal",
+    "state"
+  ],
+  "title": "Charity",
+  "type": "charity",
+  "yearlyChange": {
+    "amount": 0,
+    "amountType": "today$",
+    "limit": 0,
+    "limitEnabled": false,
+    "limitType": "today$",
+    "type": "none"
+  }
+}

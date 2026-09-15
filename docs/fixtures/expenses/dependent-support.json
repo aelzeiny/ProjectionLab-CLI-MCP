@@ -1,0 +1,32 @@
+{
+  "amount": 100,
+  "amountType": "today$",
+  "color": "purple-lighten-1",
+  "end": {
+    "modifier": "include",
+    "type": "milestone",
+    "value": "retirement"
+  },
+  "frequency": "yearly",
+  "frequencyChoices": true,
+  "icon": "mdi-human-child",
+  "id": "55b8b1ea-7c27-4216-b60c-c9c9c64280f2",
+  "name": "Dependent",
+  "owner": "me",
+  "planPath": "expenses",
+  "spendingType": "essential",
+  "start": {
+    "type": "keyword",
+    "value": "beforeCurrentYear"
+  },
+  "title": "Dependent",
+  "type": "dependent-support",
+  "yearlyChange": {
+    "amount": 0,
+    "amountType": "today$",
+    "limit": 0,
+    "limitEnabled": false,
+    "limitType": "today$",
+    "type": "match-inflation"
+  }
+}

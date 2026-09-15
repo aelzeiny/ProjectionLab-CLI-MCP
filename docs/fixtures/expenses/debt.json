@@ -1,0 +1,47 @@
+{
+  "amount": 0,
+  "amountType": "today$",
+  "color": "orange-lighten-1",
+  "compounding": "daily",
+  "effectiveDate": {
+    "modifier": "include",
+    "type": "keyword",
+    "value": "now"
+  },
+  "end": {
+    "type": "keyword",
+    "value": "never"
+  },
+  "forgiveAt": {
+    "modifier": "include",
+    "type": "keyword",
+    "value": "now"
+  },
+  "frequency": "monthly",
+  "frequencyChoices": true,
+  "hasForgiveness": false,
+  "icon": "mdi-weight-pound",
+  "id": "5005ff44-d1af-4b76-815e-121a88ffe24d",
+  "interestRate": 0,
+  "interestType": "compound",
+  "monthlyPayment": 0,
+  "monthlyPaymentType": "today$",
+  "name": "Debt",
+  "owner": "me",
+  "planPath": "expenses",
+  "start": {
+    "modifier": "include",
+    "type": "keyword",
+    "value": "now"
+  },
+  "title": "Debt",
+  "type": "debt",
+  "yearlyChange": {
+    "amount": 0,
+    "amountType": "today$",
+    "limit": 0,
+    "limitEnabled": false,
+    "limitType": "today$",
+    "type": "none"
+  }
+}

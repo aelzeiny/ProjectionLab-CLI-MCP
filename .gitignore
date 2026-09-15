@@ -3,4 +3,5 @@ __pycache__/
 *.pyc
 .venv/
 dist/
-.playwright-mcp
+.playwright-mcp/
+backups/

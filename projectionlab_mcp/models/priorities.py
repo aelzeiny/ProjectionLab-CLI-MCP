@@ -19,24 +19,11 @@ from __future__ import annotations
 import uuid
 from typing import Annotated, Any, Literal, Optional
 from pydantic import BaseModel, Field
+from .common import TimeRef
 
 
-class PriorityTimeRef(BaseModel):
-    """A point in time used for priority start/end dates.
-
-    Common keyword values:
-      "beforeCurrentYear" — already active / started in the past
-      "now"               — current year
-      "endOfPlan"         — runs until the end of the plan
-      "retirement"        — at retirement
-      "never"             — no end
-
-    Use modifier="exclude" for "before" semantics (exclusive start).
-    Use modifier="include" for "at or through" semantics (inclusive end).
-    """
-    type: Literal["keyword", "age"]
-    value: str
-    modifier: Optional[Literal["include", "exclude"]] = None
+# PriorityTimeRef is the shared TimeRef (see common.py for every observed shape).
+PriorityTimeRef = TimeRef
 
 
 class Priority(BaseModel):

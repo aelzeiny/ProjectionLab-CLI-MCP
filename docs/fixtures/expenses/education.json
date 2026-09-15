@@ -1,0 +1,34 @@
+{
+  "amount": 100,
+  "amountType": "today$",
+  "color": "light-green-lighten-1",
+  "end": {
+    "modifier": "include",
+    "type": "keyword",
+    "value": "endOfPlan"
+  },
+  "frequency": "yearly",
+  "frequencyChoices": true,
+  "icon": "mdi-school",
+  "id": "330520cc-abcd-4b06-b22d-5abbf70fa558",
+  "itemized": false,
+  "name": "Education",
+  "owner": "me",
+  "planPath": "expenses",
+  "spendingType": "essential",
+  "start": {
+    "type": "keyword",
+    "value": "beforeCurrentYear"
+  },
+  "taxDeductible": false,
+  "title": "Education",
+  "type": "education",
+  "yearlyChange": {
+    "amount": 0,
+    "amountType": "today$",
+    "limit": 0,
+    "limitEnabled": false,
+    "limitType": "today$",
+    "type": "match-inflation"
+  }
+}

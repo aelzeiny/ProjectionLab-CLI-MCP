@@ -1,0 +1,35 @@
+{
+  "amount": 0,
+  "amountType": "today$",
+  "country": "US",
+  "end": {
+    "modifier": "include",
+    "type": "keyword",
+    "value": "endOfPlan"
+  },
+  "estimateIncome": true,
+  "expectedPercent": 100,
+  "frequency": "yearly",
+  "frequencyChoices": true,
+  "icon": "mdi-account-supervisor-circle-outline",
+  "id": "493b1d0d-4923-4c83-b25f-4706751d7b7e",
+  "name": "Social Security",
+  "owner": "me",
+  "planPath": "income",
+  "primaryInsuranceAmount": 100,
+  "start": {
+    "type": "date",
+    "value": "2060-12-01"
+  },
+  "taxExempt": false,
+  "title": "Social Security",
+  "type": "social-security",
+  "yearlyChange": {
+    "amount": 0,
+    "amountType": "today$",
+    "limit": 0,
+    "limitEnabled": false,
+    "limitType": "today$",
+    "type": "match-inflation"
+  }
+}
