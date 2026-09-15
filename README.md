@@ -1,6 +1,9 @@
-# projectionlab-mcp
+# ProjectionLab CLI & MCP
 
-An MCP server for [ProjectionLab](https://app.projectionlab.com) that bridges AI assistants to the [ProjectionLab Plugin API](https://docs.projectionlab.com/plugins). It drives a headless browser via Playwright, authenticates to ProjectionLab, and exposes your financial data as structured MCP tools.
+A command-line tool (`projectionlab` / `pl`) and an MCP server for [ProjectionLab](https://app.projectionlab.com), built on the [ProjectionLab Plugin API](https://docs.projectionlab.com/plugins). Both drive a headless browser via Playwright, log in to ProjectionLab, and expose your financial data as typed operations: read and write accounts, plans, income, expenses, milestones and flows, and export the Reports tab as CSV, JSON or PDF.
+
+- **CLI** — script ProjectionLab from the shell; every command prints JSON, so it composes with `jq`. See [CLI](#cli).
+- **MCP server** — the same operations as tools for Claude Code, Claude Desktop or any MCP client. See [Tools](#tools).
 
 ## Tools
 
@@ -165,9 +168,13 @@ you omit take the defaults the ProjectionLab UI itself would use for that type.
 ## Setup
 
 ```bash
+git clone git@github.com:aelzeiny/ProjectionLab-CLI-MCP.git
+cd ProjectionLab-CLI-MCP
 uv venv .venv && uv pip install -p .venv/bin/python -e .   # or: pip install -e .
 .venv/bin/playwright install chromium
 ```
+
+This installs three commands into the venv: `projectionlab` and `pl` (the CLI) and `projectionlab-mcp` (the server).
 
 Copy `.env.example` to `.env` and fill in your credentials:
 
